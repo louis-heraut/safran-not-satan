@@ -1,0 +1,11 @@
+[Unit]
+Description=Timer pour synchronisation quotidienne des données SAFRAN
+Requires=safran-sync.service
+
+[Timer]
+OnCalendar=daily
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

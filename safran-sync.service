@@ -1,0 +1,15 @@
+[Unit]
+Description=Synchronisation des données SAFRAN de meteo.data.gouv.fr
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=USER
+WorkingDirectory=/opt/safran-not-satan
+ExecStart=/opt/safran-not-satan/sync_safran.sh
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

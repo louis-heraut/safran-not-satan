@@ -1,0 +1,12 @@
+.env*
+*~ 
+*#
+.Rhistory
+*.emacs*
+.directory
+*.nc
+tmp
+results
+*.Rdata
+download_state.json
+.python_env/
