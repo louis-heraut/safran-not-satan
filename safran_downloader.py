@@ -1,36 +1,12 @@
-#!/usr/bin/env python3
-"""
-Script simple pour télécharger les fichiers météo de data.gouv.fr
-Télécharge UNIQUEMENT les fichiers qui ont changé
-"""
-
-import os
 import json
+import os
 import requests
 from datetime import datetime
 from pathlib import Path
 
 
-## CONFIGURATION _______________
-CONFIG_FILE = "config.json"
-
-def load_config():
-    """Charge la configuration depuis config.json"""
-    with open(CONFIG_FILE, 'r') as f:
-        return json.load(f)
-
-config = load_config()
-
-DOWNLOAD_DIR = config['download_dir']
-STATE_FILE = config['state_file']
-METEO_API_URL = config['meteo_api_url']
-METEO_DATASET_ID = config['meteo_dataset_id']
-
-API_URL = METEO_API_URL+DATASET_ID+"/"
-
-
 ## TOOLS _____________
-def load_state():
+def load_state(STATE_FILE):
     """Charge l'état des téléchargements précédents"""
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE, 'r') as f:
@@ -38,13 +14,13 @@ def load_state():
     return {}
 
 
-def save_state(state):
+def save_state(state, STATE_FILE):
     """Sauvegarde l'état des téléchargements"""
     with open(STATE_FILE, 'w') as f:
         json.dump(state, f, indent=2)
 
 
-def get_resources():
+def get_resources(API_URL):
     """Récupère la liste des ressources depuis l'API"""
     print("🔍 Récupération de la liste des fichiers...")
     response = requests.get(API_URL)
@@ -55,7 +31,7 @@ def get_resources():
     return resources
 
 
-def has_changed(resource, state):
+def has_changed(resource, state, DOWNLOAD_DIR):
     """
     Vérifie si un fichier a changé depuis le dernier téléchargement
     Compare la date 'last_modified' de l'API avec celle sauvegardée
@@ -81,7 +57,7 @@ def has_changed(resource, state):
     return False
 
 
-def download_file(resource):
+def download_file(resource, DOWNLOAD_DIR):
     """Télécharge un fichier"""
     url = resource.get('url')
     if not url:
@@ -126,7 +102,7 @@ def download_file(resource):
         return None
 
 
-def sync():
+def sync(API_URL, STATE_FILE, DOWNLOAD_DIR):
     """
     Fonction principale de synchronisation
     Télécharge UNIQUEMENT les fichiers qui ont changé
@@ -139,17 +115,17 @@ def sync():
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
     
     # Charger l'état précédent
-    state = load_state()
+    state = load_state(STATE_FILE)
     
     # Récupérer la liste des fichiers
-    resources = get_resources()
+    resources = get_resources(API_URL)
     
     # Identifier ce qui a changé
     to_download = []
     up_to_date = []
     
     for resource in resources:
-        if has_changed(resource, state):
+        if has_changed(resource, state, DOWNLOAD_DIR):
             to_download.append(resource)
         else:
             up_to_date.append(resource)
@@ -170,16 +146,17 @@ def sync():
     
     success = 0
     failed = 0
+    downloaded_files = []
     
     for i, resource in enumerate(to_download, 1):
         print(f"\n[{i}/{len(to_download)}]")
-        result = download_file(resource)
+        result = download_file(resource, DOWNLOAD_DIR)
         
         if result:
-            # Mettre à jour l'état
             state[resource['id']] = result
-            save_state(state)
+            save_state(state, STATE_FILE)
             success += 1
+            downloaded_files.append(result['filename'])
         else:
             failed += 1
     
@@ -190,8 +167,6 @@ def sync():
     print(f"✅ Réussis: {success}")
     print(f"❌ Échecs: {failed}")
     print(f"📁 Dossier: {os.path.abspath(DOWNLOAD_DIR)}")
+    
+    return downloaded_files
 
-
-## RUN ________________
-if __name__ == "__main__":
-    sync()
