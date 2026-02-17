@@ -6,16 +6,13 @@ Script principal : télécharge, dézippe, traite
 get_ipython().run_line_magic('load_ext', 'autoreload')
 get_ipython().run_line_magic('autoreload', '2')
 
-
+import os
 import json
 from pathlib import Path
+from dotenv import load_dotenv
+from art import tprint
 
-from safran_downloader import sync
-from safran_clean import clean_files
-from safran_unzip import decompress_all
-from safran_split import split_all
-from safran_convert import convert_files
-from safran_combine import merge_files
+from safran_fairy import download, decompress, split, convert, merge
 
 
 ## CONFIGURATION _______________
@@ -27,8 +24,11 @@ def load_config(CONFIG_FILE):
         return json.load(f)
 
 config = load_config(CONFIG_FILE)
+load_dotenv()
 
+WELCOME_FILE = config['welcome_file']
 STATE_FILE = config['state_file']
+
 DOWNLOAD_DIR = config['download_dir']
 RAW_DIR = config['raw_dir']
 SPLIT_DIR = config['split_dir']
@@ -37,49 +37,45 @@ OUTPUT_DIR = config['output_dir']
 
 METEO_API_URL = config['meteo_api_url']
 METEO_DATASET_ID = config['meteo_dataset_id']
-API_URL = METEO_API_URL + METEO_DATASET_ID + "/"
+
+RDG_API_URL = config['rdg_api_url']
+RDG_DATASET_DOI = config['rdg_dataset_doi']
+RDG_API_TOKEN = os.getenv("RDG_API_TOKEN")
 
 
 ## RUN _____________
 def main():
-    """Pipeline complet"""
+    with open(WELCOME_FILE, 'r') as f:
+        print(f.read())
     
     # 1. Téléchargement
-    downloaded_files = sync(API_URL, STATE_FILE, DOWNLOAD_DIR)
+    downloaded_files = download(STATE_FILE, DOWNLOAD_DIR,
+                                METEO_API_URL, METEO_DATASET_ID)
     
     if not downloaded_files:
         print("\n✨ Rien de nouveau à traiter!")
         return
-
-    clean_files(DOWNLOAD_DIR)
     
     # 2. Dézipage
-    decompressed_files = decompress_all(DOWNLOAD_DIR, RAW_DIR,
-                                        downloaded_files)
-    clean_files(RAW_DIR)
+    decompressed_files = decompress(DOWNLOAD_DIR, RAW_DIR,
+                                    downloaded_files)
         
     # 3. Traitement
-    splited_files = split_all(RAW_DIR, SPLIT_DIR, decompressed_files)
-    clean_files(SPLIT_DIR)
+    splited_files = split(RAW_DIR, SPLIT_DIR, decompressed_files)
 
     # 4. Conversion NetCDF
-    ### tmp
-    splited_files = Path(SPLIT_DIR).glob("*.parquet")
-    splited_files = [f for f in splited_files if "TINF_H_QUOT" in f.name]
-    ###
-
-    converted_files = convert_files(SPLIT_DIR, CONVERT_DIR, splited_files)
-
+    converted_files = convert(SPLIT_DIR, CONVERT_DIR, splited_files)
 
     # 5. Concaténer
-    merge_files(SPLIT_DIR, OUTPUT_DIR, converted_files)
-        
+    merged_files = merge(CONVERT_DIR, OUTPUT_DIR, converted_files)
 
-
-
-
-
+    # 6. Upload
+    upload_files_to_dataset(dataset_DOI=RDG_DATASET_DOI,
+                            file_paths=merged_files,
+                            RDG_API_URL=RDG_API_URL,
+                            RDG_API_TOKEN=RDG_API_TOKEN)
 
         
 # if __name__ == "__main__":
 # main()
+

@@ -2,3 +2,6 @@ requests
 pandas
 pyarrow
 netCDF4
+python-dotenv
+art
+xarray

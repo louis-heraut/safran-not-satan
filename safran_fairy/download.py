@@ -3,9 +3,11 @@ import os
 import requests
 from datetime import datetime
 from pathlib import Path
+from art import tprint
+
+from .clean import clean
 
 
-## TOOLS _____________
 def load_state(STATE_FILE):
     """Charge l'état des téléchargements précédents"""
     if os.path.exists(STATE_FILE):
@@ -22,12 +24,10 @@ def save_state(state, STATE_FILE):
 
 def get_resources(API_URL):
     """Récupère la liste des ressources depuis l'API"""
-    print("🔍 Récupération de la liste des fichiers...")
     response = requests.get(API_URL)
     response.raise_for_status()
     data = response.json()
     resources = data.get('resources', [])
-    print(f"✅ {len(resources)} fichiers trouvés")
     return resources
 
 
@@ -60,11 +60,7 @@ def has_changed(resource, state, DOWNLOAD_DIR):
 def download_file(resource, DOWNLOAD_DIR):
     """Télécharge un fichier"""
     url = resource.get('url')
-    if not url:
-        print(f"⚠️  Pas d'URL pour {resource.get('title', 'unknown')}")
-        return None
     
-    # Nom du fichier depuis l'URL
     filename = url.split('/')[-1].split('?')[0]
     filepath = os.path.join(DOWNLOAD_DIR, filename)
     
@@ -102,25 +98,36 @@ def download_file(resource, DOWNLOAD_DIR):
         return None
 
 
-def sync(API_URL, STATE_FILE, DOWNLOAD_DIR):
+def download(STATE_FILE, DOWNLOAD_DIR, METEO_API_URL, METEO_DATASET_ID):
     """
-    Fonction principale de synchronisation
-    Télécharge UNIQUEMENT les fichiers qui ont changé
+    Synchronise les fichiers depuis l'API en téléchargeant uniquement ceux qui ont changé.
+
+    Compare la date 'last_modified' de chaque ressource avec l'état sauvegardé,
+    télécharge les fichiers nouveaux ou modifiés, puis met à jour l'état.
+
+    Args:
+        API_URL (str):      URL de l'API retournant la liste des ressources.
+        STATE_FILE (str):   Chemin du fichier JSON de suivi des téléchargements.
+                            Créé automatiquement au premier appel.
+        DOWNLOAD_DIR (str): Dossier de destination pour les fichiers téléchargés.
+                            Créé automatiquement s'il n'existe pas.
+
+    Returns:
+        list[str] | None: Noms des fichiers téléchargés avec succès,
+                          ou None si tout est déjà à jour.
+                          Ex: ['QUOT_SIM2_1958-1959.csv.gz', ...]
+
+    Notes:
+        - L'état est sauvegardé après chaque téléchargement réussi.
     """
-    print("="*60)
-    print("🌤️  Synchronisation des données météo")
-    print("="*60)
-    
-    # Créer le dossier de destination
+  
+    tprint("download", "small")
+
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
-    
-    # Charger l'état précédent
-    state = load_state(STATE_FILE)
-    
-    # Récupérer la liste des fichiers
+    state = load_state(STATE_FILE)    
+    API_URL = METEO_API_URL + METEO_DATASET_ID + "/"
     resources = get_resources(API_URL)
     
-    # Identifier ce qui a changé
     to_download = []
     up_to_date = []
     
@@ -130,19 +137,15 @@ def sync(API_URL, STATE_FILE, DOWNLOAD_DIR):
         else:
             up_to_date.append(resource)
     
-    print(f"\n📊 Analyse:")
+    print("ANALYSE")
     print(f"   - {len(to_download)} fichier(s) à télécharger")
     print(f"   - {len(up_to_date)} fichier(s) déjà à jour")
     
-    # Si rien à télécharger
     if not to_download:
         print("\n✨ Tous les fichiers sont à jour!")
         return
-    
-    # Télécharger ce qui a changé
-    print(f"\n{'='*60}")
-    print("📥 Téléchargements")
-    print(f"{'='*60}")
+
+    print("\nTÉLÉCHARGEMENT")
     
     success = 0
     failed = 0
@@ -159,14 +162,13 @@ def sync(API_URL, STATE_FILE, DOWNLOAD_DIR):
             downloaded_files.append(result['filename'])
         else:
             failed += 1
-    
-    # Résumé
-    print(f"\n{'='*60}")
-    print("📈 Résumé")
-    print(f"{'='*60}")
-    print(f"✅ Réussis: {success}")
-    print(f"❌ Échecs: {failed}")
-    print(f"📁 Dossier: {os.path.abspath(DOWNLOAD_DIR)}")
-    
+
+    clean(DOWNLOAD_DIR)
+            
+    print("\nRÉSUMÉ")
+    print(f"   - ✅ Réussis: {success}")
+    print(f"   - ❌ Échecs: {failed}")
+    print(f"   - 📁 Dossier: {os.path.abspath(DOWNLOAD_DIR)}")
+
     return downloaded_files
 

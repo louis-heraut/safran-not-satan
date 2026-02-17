@@ -1,4 +1,5 @@
 {
+    "welcome_file": "welcome.txt",
     "state_file": "download_state.json",
     "download_dir": "00_SAFRAN-data_download",
     "raw_dir": "01_SAFRAN-data_raw",
@@ -6,5 +7,7 @@
     "convert_dir": "03_SAFRAN-data_convert",
     "output_dir": "04_SAFRAN-data_output",
     "meteo_api_url": "https://www.data.gouv.fr/api/1/datasets/",
-    "meteo_dataset_id": "6569b27598256cc583c917a7"
+    "meteo_dataset_id": "6569b27598256cc583c917a7",
+    "rdg_api_url": "https://entrepot.recherche.data.gouv.fr",
+    "rdg_dataset_doi": ""
 } 
