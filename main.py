@@ -15,7 +15,7 @@ from safran_clean import clean_files
 from safran_unzip import decompress_all
 from safran_split import split_all
 from safran_convert import convert_files
-from safran_concatenate import check_new_historical, check_new_pevious, check_new_latest
+from safran_combine import merge_files
 
 
 ## CONFIGURATION _______________
@@ -65,15 +65,14 @@ def main():
     # 4. Conversion NetCDF
     ### tmp
     splited_files = Path(SPLIT_DIR).glob("*.parquet")
+    splited_files = [f for f in splited_files if "TINF_H_QUOT" in f.name]
     ###
 
     converted_files = convert_files(SPLIT_DIR, CONVERT_DIR, splited_files)
 
 
     # 5. Concaténer
-    new_historical = check_new_historical(splited_files)
-    if new_historical:
-        combine_historical(SPLIT_DIR, OUTPUT_DIR, splited_files)
+    merge_files(SPLIT_DIR, OUTPUT_DIR, converted_files)
         
 
 
