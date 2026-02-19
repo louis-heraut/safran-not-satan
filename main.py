@@ -167,7 +167,7 @@ def main():
 
 if __name__ == "__main__":
     try:
-        if !DEV_MODE:
+        if not DEV_MODE:
             main()
     except KeyboardInterrupt:
         print("\n\n⚠️  Interruption par l'utilisateur")
