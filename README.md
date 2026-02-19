@@ -146,4 +146,4 @@ Voir [LICENSE](LICENSE)
 
 
 ## Contact
-Maintenu par [Lou Heraut](mailto:louis.heraut@inrae.fr) - [INRAE](https://agriculture.gouv.fr/inrae-linstitut-national-de-recherche-pour-lagriculture-lalimentation-et-lenvironnement), [UR RiverLy](https://www.riverly.inrae.fr/), Villeurbanne, France.
+Maintenu par [Lou Heraut](mailto:louis.heraut@inrae.fr) ([INRAE](https://agriculture.gouv.fr/inrae-linstitut-national-de-recherche-pour-lagriculture-lalimentation-et-lenvironnement), [UR RiverLy](https://www.riverly.inrae.fr/), Villeurbanne, France)
