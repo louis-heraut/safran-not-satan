@@ -1,6 +1,27 @@
 # SAFRAN Fairy
 
-Pipeline automatisé de téléchargement, traitement et publication des données SAFRAN-ISBA-MODCOU (SIM2) au format NetCDF pour chaque variable disponible pour l'ensemble de la période de réanalyse depuis [meteo.data.gouv.fr](https://www.data.gouv.fr/datasets/donnees-changement-climatique-sim-quotidienne) vers [https://entrepot.recherche.data.gouv.fr](https://doi.org/10.57745/BAZ12C).
+Pipeline automatisé de téléchargement, traitement et publication des données SAFRAN-ISBA-MODCOU (SIM2) au format NetCDF pour chaque variable disponible pour l'ensemble de la période de réanalyse depuis [meteo.data.gouv.fr](https://www.data.gouv.fr/datasets/donnees-changement-climatique-sim-quotidienne) vers [Recherche Data Gouv](https://doi.org/10.57745/BAZ12C).
+
+
+## Raison d'être
+Afin d'améliorer la réutilisabilité et en raison d'une accessibilité et d'une interopérabilité technique limitées des données dans leur format d'origine (CSV volumineux), ce projet automatise :
+
+1. Le téléchargement depuis l'API Météo-France
+2. Le découpage par **variable climatique**
+3. La transformation au format **NetCDF** avec métadonnées
+4. La publication sur un dépôt Dataverse accessible
+
+*in dev* – Ce projet ajoute aux données d'origine l'évapotranspiration calculée selon la [méthode de Hargreaves](https://doi.org/10.13031/2013.26773) à partir des températures minimales et maximales de la réanalyse SAFRAN afin de continuer de répondre au besoin exprimé dans le cadre du projet [Explore2](https://entrepot.recherche.data.gouv.fr/dataverse/explore2).
+
+
+## Stratégie de mise à jour
+Trois fichiers NetCDF par variable pour optimiser la performance et la fraîcheur des données :
+
+| Type | Description | Période couverte | Fréquence MAJ | Stabilité |
+|------|-------------|------------------|---------------|-----------|
+| **historical** | Chronique historique stable | 1958 → N-10 ans | Jamais | ✅ Stable |
+| **previous** | Décennie en cours (mois complets) | N-10 ans → mois dernier | Mensuelle | 🔄 Mise à jour mensuelle |
+| **latest** | Données les plus récentes | N-10 ans → aujourd'hui | Quotidienne | ⚡ Mise à jour quotidienne |
 
 
 ## Vue d'ensemble
@@ -8,7 +29,7 @@ Ce projet automatise :
 1. **Téléchargement** des fichiers CSV depuis l'API Météo-France
 2. **Décompression** des archives `.csv.gz`
 3. **Découpage** par variable climatique
-4. **Conversion** en NetCDF avec métadonnées CF-compliant
+4. **Conversion** en NetCDF avec métadonnées
 5. **Fusion** temporelle (historical/previous/latest)
 6. **Publication** sur un dépôt de l'entrepôt Recherche Data Gouv.
 
@@ -125,4 +146,4 @@ Voir [LICENSE](LICENSE)
 
 
 ## Contact
-Maintenu par Lou Heraut - INRAE
+Maintenu par [Lou Heraut](mailto:louis.heraut@inrae.fr) - [INRAE](https://agriculture.gouv.fr/inrae-linstitut-national-de-recherche-pour-lagriculture-lalimentation-et-lenvironnement), [UR RiverLy](https://www.riverly.inrae.fr/), Villeurbanne, France.
