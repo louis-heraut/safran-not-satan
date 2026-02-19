@@ -61,7 +61,7 @@ Trois fichiers NetCDF par variable pour optimiser la performance et la fraîcheu
 Voir `resources/safran_variables.csv` pour la liste complète.
 
 
-## Installation rapide
+## Installation locale
 ### Prérequis
 - Python 3.10+
 - NCO (NetCDF Operators) : `sudo apt install nco`
@@ -72,10 +72,7 @@ Voir `resources/safran_variables.csv` pour la liste complète.
 git clone https://github.com/louis-heraut/safran-fairy.git
 cd safran-fairy
 
-# Installation automatique
-make install
-
-# Installation manuelle
+# Installation
 python -m venv .python_env
 source .python_env/bin/activate
 pip install -r requirements.txt
@@ -135,11 +132,11 @@ safran_fairy/
 
 ### Structure des données
 ```
-00_SAFRAN-data_download/     # Fichiers .csv.gz bruts téléchargés
-01_SAFRAN-data_raw/          # Fichiers .csv décompressés
-02_SAFRAN-data_split/        # Fichiers .parquet par variable
-03_SAFRAN-data_convert/      # Fichiers .nc individuels
-04_SAFRAN-data_output/       # Fichiers .nc fusionnés (historical/previous/latest)
+00_download/     # Fichiers .csv.gz bruts téléchargés
+01_raw/          # Fichiers .csv décompressés
+02_split/        # Fichiers .parquet par variable
+03_convert/      # Fichiers .nc individuels
+04_output/       # Fichiers .nc fusionnés (historical/previous/latest)
 ```
 
 

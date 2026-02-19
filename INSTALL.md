@@ -6,7 +6,6 @@
 ```bash
 # Mise à jour
 sudo apt update && sudo apt upgrade -y
-
 # Dépendances système
 sudo apt install -y \
     python3.10 \
@@ -20,7 +19,6 @@ sudo apt install -y \
 ```bash
 # Créer le répertoire d'installation
 sudo mkdir -p /opt/safran-fairy
-sudo chown $USER:$USER /opt/safran-fairy
 
 # Cloner le projet
 cd /opt/safran-fairy
@@ -31,16 +29,32 @@ make install
 ```
 
 ### 3. Configuration
+#### 3.1. env
 ```bash
 # Copier et éditer le fichier d'environnement
 cp env.dist .env
 nano .env
 ```
-
-Remplir avec vos identifiants :
-```ini
-# API Dataverse
+Remplir avec vos paramètres pour la prod :
+```bash
+MODE=prod
+CONFIG_FILE=config-prod.json
 RDG_API_TOKEN=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+```
+
+#### 3.2. config.json
+```bash
+# Copier et éditer le fichier de configuration
+cp config.json.dist config.json
+nano config.json
+```
+Remplir avec vos paramètres pour la prod :
+```bash
+"download_dir": "/var/lib/safran-fairy/00_download",
+"raw_dir": "/var/lib/safran-fairy/01_raw",
+"split_dir": "/var/lib/safran-fairy/02_split",
+"convert_dir": "/var/lib/safran-fairy/03_convert",
+"output_dir": "/var/lib/safran-fairy/04_output"
 ```
 
 ### 4. Test manuel
@@ -48,19 +62,17 @@ RDG_API_TOKEN=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 # Tester le pipeline complet
 make run
 
-# Vérifier les logs
-ls -lh 04_SAFRAN-data_output/
+# Vérifier les données générées
+ls -lh /var/lib/safran-fairy/04_output/
 ```
 
 ### 5. Installation du service systemd
 ```bash
 # Installer le service et le timer
 sudo make install-service
-
 # Activer le service
 sudo systemctl enable safran-sync.timer
 sudo systemctl start safran-sync.timer
-
 # Vérifier l'installation
 sudo systemctl status safran-sync.timer
 ```
@@ -69,10 +81,8 @@ sudo systemctl status safran-sync.timer
 ```bash
 # Voir les prochaines exécutions planifiées
 systemctl list-timers safran-sync.timer
-
 # Tester une exécution manuelle
 sudo systemctl start safran-sync.service
-
 # Suivre les logs en temps réel
 sudo journalctl -u safran-sync.service -f
 ```
@@ -84,14 +94,12 @@ sudo journalctl -u safran-sync.service -f
 ```bash
 sudo systemctl edit safran-sync.timer
 ```
-
 Ajouter :
 ```ini
 [Timer]
 OnCalendar=
 OnCalendar=*-*-* 03:00:00
 ```
-
 Recharger :
 ```bash
 sudo systemctl daemon-reload
@@ -103,12 +111,10 @@ Installer postfix :
 ```bash
 sudo apt install postfix mailutils
 ```
-
 Modifier le service pour envoyer un email en cas d'erreur :
 ```bash
 sudo systemctl edit safran-sync.service
 ```
-
 Ajouter :
 ```ini
 [Service]
@@ -135,13 +141,10 @@ Créer `/etc/logrotate.d/safran-fairy` :
 ```bash
 # Statut général
 make status
-
 # Dernière exécution
 make last-run
-
 # Logs des 24 dernières heures
 sudo journalctl -u safran-sync.service --since "24 hours ago"
-
 # Erreurs uniquement
 sudo journalctl -u safran-sync.service -p err
 ```
@@ -149,14 +152,30 @@ sudo journalctl -u safran-sync.service -p err
 ### Métriques utiles
 ```bash
 # Taille des données
-du -sh 0*_SAFRAN-data_*/
+du -sh /var/lib/safran-fairy/*/
 
 # Nombre de fichiers traités
-ls 04_SAFRAN-data_output/*.nc | wc -l
+ls /var/lib/safran-fairy/04_output/*.nc | wc -l
 
 # Dernière mise à jour
-stat -c '%y' 04_SAFRAN-data_output/*.nc | sort | tail -1
+stat -c '%y' /var/lib/safran-fairy/04_output/*.nc | sort | tail -1
 ```
+
+
+## Mise à jour
+```bash
+# Mettre à jour le code depuis git
+cd /opt/safran-fairy
+make update
+
+# Le service utilisera automatiquement le nouveau code 
+# à sa prochaine exécution (quotidienne à 02:00)
+# OU tester immédiatement :
+sudo systemctl start safran-sync.service
+sudo journalctl -u safran-sync.service -f
+```
+
+**Note :** La mise à jour ne modifie pas vos fichiers de configuration (`.env`, `config.json`) ni vos données.
 
 
 ## Désinstallation
@@ -165,51 +184,12 @@ stat -c '%y' 04_SAFRAN-data_output/*.nc | sort | tail -1
 sudo systemctl stop safran-sync.timer
 sudo systemctl disable safran-sync.timer
 sudo systemctl stop safran-sync.service
-
 # Supprimer les fichiers systemd
 sudo rm /etc/systemd/system/safran-sync.service
 sudo rm /etc/systemd/system/safran-sync.timer
 sudo systemctl daemon-reload
-
 # Supprimer le projet (attention : supprime toutes les données !)
 sudo rm -rf /opt/safran-fairy
-```
-
-
-## Dépannage
-### Le service ne démarre pas
-```bash
-# Vérifier les permissions
-ls -la /opt/safran-fairy
-sudo chown -R safran-user:safran-user /opt/safran-fairy
-
-# Vérifier la syntaxe du service
-systemd-analyze verify safran-sync.service
-
-# Logs détaillés
-sudo journalctl -xe -u safran-sync.service
-```
-
-### Problèmes de téléchargement
-```bash
-# Tester la connexion à l'API
-curl -I https://meteo.data.gouv.fr/
-
-# Vérifier les credentials Dataverse
-curl -H "X-Dataverse-key: $RDG_API_TOKEN" \
-     "$RDG_BASE_URL/api/datasets/:persistentId/?persistentId=$RDG_DATASET_DOI"
-```
-
-### Espace disque insuffisant
-```bash
-# Vérifier l'espace disponible
-df -h /opt/safran-fairy
-
-# Nettoyer les fichiers intermédiaires
-make clean
-
-# Nettoyer uniquement les fichiers temporaires (garde les outputs)
-rm -rf 01_SAFRAN-data_raw/* 02_SAFRAN-data_split/* 03_SAFRAN-data_convert/*
 ```
 
 
@@ -217,7 +197,6 @@ rm -rf 01_SAFRAN-data_raw/* 02_SAFRAN-data_split/* 03_SAFRAN-data_convert/*
 ```bash
 # Sur l'ancien serveur : sauvegarder la config et l'état
 tar czf safran-backup.tar.gz .env resources/download_state.json
-
 # Sur le nouveau serveur : suivre l'installation normale puis restaurer
 tar xzf safran-backup.tar.gz
 ```

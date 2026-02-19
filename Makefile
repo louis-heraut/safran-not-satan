@@ -20,11 +20,18 @@ help: ## Affiche cette aide
 
 install: ## Installe le projet (virtualenv + dépendances)
 	@echo "$(GREEN)Installation de SAFRAN Fairy...$(NC)"
+	sudo mkdir -p /var/lib/safran-fairy/{00_download,01_raw,02_split,03_convert,04_output}
+	sudo chown $(USER):$(USER) /opt/safran-fairy
+	sudo chown -R $(USER):$(USER) /var/lib/safran-fairy
 	$(PYTHON) -m venv $(VENV)
 	$(PIP) install --upgrade pip
 	$(PIP) install -r requirements.txt
 	@echo "$(GREEN)✓ Installation terminée$(NC)"
 	@echo "Pour activer l'environnement : source $(VENV)/bin/activate"
+
+update: ## Met à jour le projet depuis git
+	git pull
+	$(PIP) install --upgrade -r requirements.txt
 
 run: ## Exécute le pipeline complet (download + process + upload)
 	@echo "$(GREEN)Exécution du pipeline complet...$(NC)"
@@ -48,9 +55,9 @@ clean: ## Nettoie les anciennes versions (local + Dataverse)
 
 hard-clean: ## Nettoie les fichiers temporaires (⚠️ destructif mais garde les outputs)
 	@echo "$(YELLOW)Nettoyage des fichiers temporaires...$(NC)"
-	rm -rf 01_SAFRAN-data_raw/*
-	rm -rf 02_SAFRAN-data_split/*
-	rm -rf 03_SAFRAN-data_convert/*
+	rm -rf /var/lib/safran-fairy/01_raw/*
+	rm -rf /var/lib/safran-fairy/02_split/*
+	rm -rf /var/lib/safran-fairy/03_convert/*
 	@echo "$(GREEN)✓ Nettoyage terminé$(NC)"
 
 hard-clean-all: ## Nettoie TOUS les fichiers générés (⚠️ destructif)
@@ -58,11 +65,11 @@ hard-clean-all: ## Nettoie TOUS les fichiers générés (⚠️ destructif)
 	@read -p "Êtes-vous sûr ? [y/N] " -n 1 -r; \
 	echo; \
 	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
-		rm -rf 00_SAFRAN-data_download/*; \
-		rm -rf 01_SAFRAN-data_raw/*; \
-		rm -rf 02_SAFRAN-data_split/*; \
-		rm -rf 03_SAFRAN-data_convert/*; \
-		rm -rf 04_SAFRAN-data_output/*; \
+		rm -rf /var/lib/safran-fairy/00_download/*; \
+		rm -rf /var/lib/safran-fairy/01_raw/*; \
+		rm -rf /var/lib/safran-fairy/02_split/*; \
+		rm -rf /var/lib/safran-fairy/03_convert/*; \
+		rm -rf /var/lib/safran-fairy/04_output/*; \
 		echo "$(GREEN)✓ Nettoyage complet terminé$(NC)"; \
 	fi
 
@@ -114,17 +121,17 @@ stats: ## Affiche des statistiques sur les données
 	@echo "$(GREEN)Statistiques SAFRAN Fairy :$(NC)"
 	@echo ""
 	@echo "Espace disque :"
-	@du -sh 0*_SAFRAN-data_*/ 2>/dev/null || echo "  Aucune donnée"
+	@du -sh /var/lib/safran-fairy/0*_*/ 2>/dev/null || echo "  Aucune donnée"
 	@echo ""
 	@echo "Nombre de fichiers :"
-	@echo "  Downloads    : $$(ls -1 00_SAFRAN-data_download/*.csv.gz 2>/dev/null | wc -l)"
-	@echo "  Raw          : $$(ls -1 01_SAFRAN-data_raw/*.csv 2>/dev/null | wc -l)"
-	@echo "  Split        : $$(ls -1 02_SAFRAN-data_split/*.parquet 2>/dev/null | wc -l)"
-	@echo "  Converted    : $$(ls -1 03_SAFRAN-data_convert/*.nc 2>/dev/null | wc -l)"
-	@echo "  Outputs      : $$(ls -1 04_SAFRAN-data_output/*.nc 2>/dev/null | wc -l)"
+	@echo "  Downloads    : $$(ls -1 /var/lib/safran-fairy/00_download/*.csv.gz 2>/dev/null | wc -l)"
+	@echo "  Raw          : $$(ls -1 /var/lib/safran-fairy/01_raw/*.csv 2>/dev/null | wc -l)"
+	@echo "  Split        : $$(ls -1 /var/lib/safran-fairy/02_split/*.parquet 2>/dev/null | wc -l)"
+	@echo "  Converted    : $$(ls -1 /var/lib/safran-fairy/03_convert/*.nc 2>/dev/null | wc -l)"
+	@echo "  Outputs      : $$(ls -1 /var/lib/safran-fairy/04_output/*.nc 2>/dev/null | wc -l)"
 	@echo ""
 	@echo "Dernière mise à jour :"
-	@stat -c '%y %n' 04_SAFRAN-data_output/*.nc 2>/dev/null | sort | tail -1 | awk '{print "  " $$1, $$2, $$4}' || echo "  Aucune donnée"
+	@stat -c '%y %n' /var/lib/safran-fairy/04_output/*.nc 2>/dev/null | sort | tail -1 | awk '{print "  " $$1, $$2, $$4}' || echo "  Aucune donnée"
 
 check-env: ## Vérifie la configuration
 	@echo "$(GREEN)Vérification de l'environnement :$(NC)"

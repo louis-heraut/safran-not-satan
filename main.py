@@ -24,17 +24,12 @@ def print_welcome(welcome_file):
             print(f.read())
 
 
-# Charger config
-try:
-    RESOURCES_DIR = Path(__file__).parent / "resources"
-except NameError:
-    RESOURCES_DIR = Path.cwd() / "resources"
-CONFIG_FILE = RESOURCES_DIR / "config.json"
-config = load_config(CONFIG_FILE)
-DEV_MODE = config['dev_mode']
+# Charger env
+load_dotenv()
+MODE = os.getenv("MODE")
 
 # Setup dev mode
-if DEV_MODE:
+if MODE == "dev":
     try:
         get_ipython().run_line_magic('load_ext', 'autoreload')
         get_ipython().run_line_magic('autoreload', '2')
@@ -67,8 +62,10 @@ def main():
         args.all = True
     
     # Configuration
-    load_dotenv()
-    
+    CONFIG_FILE = os.getenv("CONFIG_FILE")
+    config = load_config(CONFIG_FILE)
+
+    RESOURCES_DIR = "resources"
     WELCOME_FILE = RESOURCES_DIR / config['welcome_file']
     STATE_FILE = RESOURCES_DIR / config['state_file']
     METADATA_VARIABLES_FILE = RESOURCES_DIR / config['metadata_variables_file']
@@ -167,7 +164,7 @@ def main():
 
 if __name__ == "__main__":
     try:
-        if not DEV_MODE:
+        if MODE == "prod":
             main()
     except KeyboardInterrupt:
         print("\n\n⚠️  Interruption par l'utilisateur")
