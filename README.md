@@ -51,7 +51,7 @@ Voir `resources/safran_variables.csv` pour la liste complète.
 ### Installation
 ```bash
 # Cloner le dépôt
-git clone <repo_url>
+git clone git@github.com:louis-heraut/safran-fairy.git
 cd safran-fairy
 
 # Installation automatique
