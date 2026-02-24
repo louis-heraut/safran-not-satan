@@ -30,7 +30,7 @@ install: ## Installe le projet (virtualenv + dépendances)
 	@echo "Pour activer l'environnement : source $(VENV)/bin/activate"
 
 update: ## Met à jour le projet depuis git
-	git pull
+	sudo git pull
 	$(PIP) install --upgrade -r requirements.txt
 
 run: ## Exécute le pipeline complet (download + process + upload)
