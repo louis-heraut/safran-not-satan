@@ -45,8 +45,8 @@ RDG_API_TOKEN=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 #### 3.2. config.json
 ```bash
 # Copier et éditer le fichier de configuration
-cp config.json.dist config.json
-nano config.json
+cp config.json.dist config-prod.json
+nano config-prod.json
 ```
 Remplir avec vos paramètres pour la prod :
 ```bash

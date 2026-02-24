@@ -65,7 +65,7 @@ def main():
     CONFIG_FILE = os.getenv("CONFIG_FILE")
     config = load_config(CONFIG_FILE)
 
-    RESOURCES_DIR = "resources"
+    RESOURCES_DIR = Path("resources")
     WELCOME_FILE = RESOURCES_DIR / config['welcome_file']
     STATE_FILE = RESOURCES_DIR / config['state_file']
     METADATA_VARIABLES_FILE = RESOURCES_DIR / config['metadata_variables_file']
