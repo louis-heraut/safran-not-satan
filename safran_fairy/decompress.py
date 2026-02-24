@@ -37,21 +37,11 @@ def decompress(DOWNLOAD_DIR, RAW_DIR, downloaded_files=None):
                     Ex: [RAW_DIR/QUOT_SIM2_1958-1959.csv, ...]
     """
 
-
-    print(DOWNLOAD_DIR)
-    print(RAW_DIR)
-    print(downloaded_files)
-    
-    
     tprint("decompress", "small")
 
     Path(RAW_DIR).mkdir(parents=True, exist_ok=True)    
     if downloaded_files is None:
         downloaded_files = list(Path(DOWNLOAD_DIR).glob("*.csv.gz"))
-
-
-    print(downloaded_files)
-
         
     print("DÉCOMPRESSION")
     
