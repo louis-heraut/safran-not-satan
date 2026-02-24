@@ -5,9 +5,10 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-User=USER
-WorkingDirectory=/opt/safran-not-satan
-ExecStart=/opt/safran-not-satan/sync_safran.sh
+User=safran-fairy
+Group=safran-fairy
+WorkingDirectory=/opt/safran-fairy
+ExecStart=/opt/safran-fairy/.python_env/bin/python main.py --all
 StandardOutput=journal
 StandardError=journal
 

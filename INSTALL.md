@@ -16,15 +16,13 @@ sudo apt install -y \
 ```
 
 ### 2. Installation du projet
-```bash
-# Créer le répertoire d'installation
-sudo mkdir -p /opt/safran-fairy
-
+``` bash
 # Cloner le projet
+sudo mkdir -p /opt/safran-fairy
 cd /opt/safran-fairy
 git clone https://github.com/louis-heraut/safran-fairy.git .
 
-# Installer les dépendances Python
+# Installer le virtualenv et les dépendances Python
 make install
 ```
 
@@ -50,6 +48,7 @@ nano config-prod.json
 ```
 Remplir avec vos paramètres pour la prod :
 ```bash
+"state_file": "/var/lib/safran-fairy/download_state.json",
 "download_dir": "/var/lib/safran-fairy/00_data-download",
 "raw_dir": "/var/lib/safran-fairy/01_data-raw",
 "split_dir": "/var/lib/safran-fairy/02_data-split",
@@ -57,34 +56,34 @@ Remplir avec vos paramètres pour la prod :
 "output_dir": "/var/lib/safran-fairy/04_data-output"
 ```
 
-### 4. Test manuel
-```bash
-# Tester le pipeline complet
-make run
+### 4. Installation prod et service systemd
+``` bash
+# Crée l'user système, les dossiers /var/lib avec les bons droits,
+# installe et démarre le timer — tout en une commande
+sudo make install-service
+```
+
+### 5. Test manuel
+``` bash
+# Tester le pipeline comme le ferait le service
+make run-as-service
 
 # Vérifier les données générées
 ls -lh /var/lib/safran-fairy/04_data-output/
 ```
 
-### 5. Installation du service systemd
-```bash
-# Installer le service et le timer
-sudo make install-service
-# Activer le service
-sudo systemctl enable safran-sync.timer
-sudo systemctl start safran-sync.timer
-# Vérifier l'installation
-sudo systemctl status safran-sync.timer
-```
-
 ### 6. Vérification
-```bash
+``` bash
 # Voir les prochaines exécutions planifiées
 systemctl list-timers safran-sync.timer
-# Tester une exécution manuelle
+
+# Tester une exécution manuelle via systemd
 sudo systemctl start safran-sync.service
+
 # Suivre les logs en temps réel
 sudo journalctl -u safran-sync.service -f
+# ou via make :
+make logs
 ```
 
 

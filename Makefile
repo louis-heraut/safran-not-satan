@@ -1,4 +1,4 @@
-.PHONY: help install run download process upload clean clean-old status logs last-run install-service test
+.PHONY: help install install-prod install-service uninstall-service update run run-as-service download process upload clean hard-clean hard-clean-all status logs last-run stats check-env backup test
 
 # Variables
 PYTHON := python3
@@ -18,24 +18,54 @@ help: ## Affiche cette aide
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-20s$(NC) %s\n", $$1, $$2}'
 
-install: ## Installe le projet (virtualenv + dépendances)
+
+install: ## Installe le projet (virtualenv + dépendances) - pour le dev
 	@echo "$(GREEN)Installation de SAFRAN Fairy...$(NC)"
-	sudo mkdir -p /var/lib/safran-fairy/{00_data-download,01_data-raw,02_data-split,03_data-convert,04_data-output}
-	sudo chown $(USER):$(USER) /opt/safran-fairy
-	sudo chown -R $(USER):$(USER) /var/lib/safran-fairy
 	$(PYTHON) -m venv $(VENV)
 	$(PIP) install --upgrade pip
 	$(PIP) install -r requirements.txt
 	@echo "$(GREEN)✓ Installation terminée$(NC)"
 	@echo "Pour activer l'environnement : source $(VENV)/bin/activate"
 
-update: ## Met à jour le projet depuis git
-	sudo git pull
-	$(PIP) install --upgrade -r requirements.txt
+install-prod:
+	@echo "$(GREEN)Configuration de SAFRAN Fairy pour la prod...$(NC)"
+	sudo useradd --system --no-create-home --shell /usr/sbin/nologin safran-fairy 2>/dev/null || true
+	sudo mkdir -p /var/lib/safran-fairy/{00_data-download,01_data-raw,02_data-split,03_data-convert,04_data-output}
+	sudo chown -R safran-fairy:safran-fairy /var/lib/safran-fairy
 
-run: ## Exécute le pipeline complet (download + process + upload)
+install-service: install-prod
+	@echo "$(GREEN)Installation du service systemd...$(NC)"
+	sudo cp safran-sync.service /etc/systemd/system/
+	sudo cp safran-sync.timer /etc/systemd/system/
+	sudo systemctl daemon-reload
+	sudo systemctl enable safran-sync.timer
+	sudo systemctl start safran-sync.timer
+	@echo "$(GREEN)✓ Service installé et activé$(NC)"
+
+uninstall-service: ## Désinstalle le service systemd (nécessite sudo)
+	@echo "$(YELLOW)Désinstallation du service systemd...$(NC)"
+	sudo systemctl stop safran-sync.timer || true
+	sudo systemctl disable safran-sync.timer || true
+	sudo rm -f /etc/systemd/system/safran-sync.service
+	sudo rm -f /etc/systemd/system/safran-sync.timer
+	sudo systemctl daemon-reload
+	sudo userdel safran-fairy 2>/dev/null || true
+	@echo "$(GREEN)✓ Service désinstallé$(NC)"
+
+update: ## Met à jour le projet depuis git
+	@echo "$(GREEN)Mise à jour du projet...$(NC)"
+	git pull
+	$(PIP) install --upgrade -r requirements.txt
+	@echo "$(GREEN)✓ Mise à jour terminée$(NC)"
+
+run: ## Exécute le pipeline (dev, avec ton user)
 	@echo "$(GREEN)Exécution du pipeline complet...$(NC)"
 	$(PYTHON_VENV) main.py --all
+
+run-as-service: ## Exécute comme le ferait le service systemd (nécessite sudo)
+	@echo "$(GREEN)Exécution du pipeline complet par le service...$(NC)"
+	sudo -u safran-fairy /opt/safran-fairy/.python_env/bin/python /opt/safran-fairy/main.py --all
+
 
 download: ## Télécharge les nouvelles données uniquement
 	@echo "$(GREEN)Téléchargement des données...$(NC)"
@@ -73,35 +103,6 @@ hard-clean-all: ## Nettoie TOUS les fichiers générés (⚠️ destructif)
 		echo "$(GREEN)✓ Nettoyage complet terminé$(NC)"; \
 	fi
 
-test: ## Lance les tests
-	@echo "$(GREEN)Lancement des tests...$(NC)"
-	$(PYTHON_VENV) -m pytest tests/ -v
-
-install-service: ## Installe le service systemd (nécessite sudo)
-	@echo "$(GREEN)Installation du service systemd...$(NC)"
-	@if [ ! -f .env ]; then \
-		echo "$(RED)Erreur : fichier .env manquant$(NC)"; \
-		echo "Créez .env depuis env.dist : cp env.dist .env"; \
-		exit 1; \
-	fi
-	@# Remplacer USER et WorkingDirectory dans les fichiers service
-	sed "s|USER|$(USER)|g; s|/opt/safran-not-satan|$(PWD)|g" safran-sync.service | sudo tee /etc/systemd/system/safran-sync.service > /dev/null
-	sudo cp safran-sync.timer /etc/systemd/system/
-	sudo systemctl daemon-reload
-	sudo systemctl enable safran-sync.timer
-	sudo systemctl start safran-sync.timer
-	@echo "$(GREEN)✓ Service installé et activé$(NC)"
-	@echo "Vérifier avec : sudo systemctl status safran-sync.timer"
-
-uninstall-service: ## Désinstalle le service systemd (nécessite sudo)
-	@echo "$(YELLOW)Désinstallation du service systemd...$(NC)"
-	sudo systemctl stop safran-sync.timer || true
-	sudo systemctl disable safran-sync.timer || true
-	sudo rm -f /etc/systemd/system/safran-sync.service
-	sudo rm -f /etc/systemd/system/safran-sync.timer
-	sudo systemctl daemon-reload
-	@echo "$(GREEN)✓ Service désinstallé$(NC)"
-
 status: ## Affiche le statut du service systemd
 	@echo "$(GREEN)Statut du service :$(NC)"
 	@sudo systemctl status safran-sync.timer --no-pager || true
@@ -132,22 +133,3 @@ stats: ## Affiche des statistiques sur les données
 	@echo ""
 	@echo "Dernière mise à jour :"
 	@stat -c '%y %n' /var/lib/safran-fairy/04_data-output/*.nc 2>/dev/null | sort | tail -1 | awk '{print "  " $$1, $$2, $$4}' || echo "  Aucune donnée"
-
-check-env: ## Vérifie la configuration
-	@echo "$(GREEN)Vérification de l'environnement :$(NC)"
-	@echo -n "Python        : "; which $(PYTHON) && $(PYTHON) --version || echo "$(RED)✗ Manquant$(NC)"
-	@echo -n "NCO (ncrcat)  : "; which ncrcat && ncrcat --version 2>&1 | head -1 || echo "$(RED)✗ Manquant$(NC)"
-	@echo -n "Virtualenv    : "; [ -d $(VENV) ] && echo "$(GREEN)✓ OK$(NC)" || echo "$(YELLOW)⚠ Lancer 'make install'$(NC)"
-	@echo -n "Fichier .env  : "; [ -f .env ] && echo "$(GREEN)✓ OK$(NC)" || echo "$(RED)✗ Manquant (cp env.dist .env)$(NC)"
-
-update: ## Met à jour le projet depuis git
-	@echo "$(GREEN)Mise à jour du projet...$(NC)"
-	git pull
-	$(PIP) install --upgrade -r requirements.txt
-	@echo "$(GREEN)✓ Mise à jour terminée$(NC)"
-
-backup: ## Sauvegarde la configuration et l'état
-	@echo "$(GREEN)Création d'une sauvegarde...$(NC)"
-	tar czf safran-backup-$$(date +%Y%m%d-%H%M%S).tar.gz .env resources/download_state.json resources/config.json
-	@echo "$(GREEN)✓ Sauvegarde créée$(NC)"
-

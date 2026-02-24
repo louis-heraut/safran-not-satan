@@ -67,8 +67,8 @@ def main():
 
     RESOURCES_DIR = Path("resources")
     WELCOME_FILE = RESOURCES_DIR / config['welcome_file']
-    STATE_FILE = RESOURCES_DIR / config['state_file']
     METADATA_VARIABLES_FILE = RESOURCES_DIR / config['metadata_variables_file']
+    STATE_FILE = config['state_file']
     
     DOWNLOAD_DIR = config['download_dir']
     RAW_DIR = config['raw_dir']
