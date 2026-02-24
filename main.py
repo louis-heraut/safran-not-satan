@@ -105,6 +105,9 @@ def main():
             if not args.all:
                 return
     
+    print(downloaded_files)
+            
+    
     # 2. TRAITEMENT
     if args.all or args.process:
         # Décompression

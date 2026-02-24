@@ -16,22 +16,20 @@ sudo apt install -y \
 ```
 
 ### 2. Installation du projet
-``` bash
+```bash
 # Cloner le projet
-sudo mkdir -p /opt/safran-fairy
+sudo git clone https://github.com/louis-heraut/safran-fairy.git /opt/safran-fairy
 cd /opt/safran-fairy
-git clone https://github.com/louis-heraut/safran-fairy.git .
-
 # Installer le virtualenv et les dépendances Python
-make install
+sudo make install
 ```
 
 ### 3. Configuration
 #### 3.1. env
 ```bash
 # Copier et éditer le fichier d'environnement
-cp env.dist .env
-nano .env
+sudo cp env.dist .env
+sudo nano .env
 ```
 Remplir avec vos paramètres pour la prod :
 ```bash
@@ -43,8 +41,8 @@ RDG_API_TOKEN=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 #### 3.2. config.json
 ```bash
 # Copier et éditer le fichier de configuration
-cp config.json.dist config-prod.json
-nano config-prod.json
+sudo cp config.json.dist config-prod.json
+sudo nano config-prod.json
 ```
 Remplir avec vos paramètres pour la prod :
 ```bash
