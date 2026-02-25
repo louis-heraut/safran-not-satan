@@ -1,4 +1,4 @@
-.PHONY: help install install-prod install-service uninstall-service update run run-as-service download process upload clean hard-clean hard-clean-all status logs last-run stats check-env backup test
+.PHONY: help install install-prod install-service uninstall-service update run run-as-service download process upload publish clean hard-clean hard-clean-all status logs last-run stats check-env backup test
 
 # Variables
 PYTHON := python3
@@ -90,6 +90,10 @@ merge: ## Fusionne temporellement
 upload: ## Upload sur Dataverse
 	@echo "$(GREEN)Upload sur Dataverse...$(NC)"
 	sudo -u safran-fairy $(PYTHON_VENV) main.py --upload
+
+publish: ## Publie sur Dataverse
+	@echo "$(GREEN)Publie sur Dataverse...$(NC)"
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --publish
 
 clean: ## Nettoie les anciennes versions (local + Dataverse)
 	@echo "$(GREEN)Nettoyage des anciennes versions...$(NC)"
