@@ -157,8 +157,7 @@ def publish(dataset_DOI: str,
     response = requests.post(url, params=params, headers=headers)
     
     if response.status_code == 200:
-        if verbose:
-            print(f"\n✅ Dataset {dataset_DOI} publié avec succès")
+        print(f"\n✅ Dataset {dataset_DOI} publié avec succès")
     else:
         print(f"\n❌ Échec de publication: {response.status_code} - {response.text}")
         return False
