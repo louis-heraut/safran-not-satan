@@ -104,6 +104,8 @@ def main():
             print("\n✨ Rien de nouveau à télécharger!")
             if not args.all:
                 return
+
+    print(downloaded_files)
     
     # 2. TRAITEMENT
     if args.all or args.process:

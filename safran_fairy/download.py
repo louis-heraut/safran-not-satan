@@ -170,6 +170,6 @@ def download(STATE_FILE, DOWNLOAD_DIR, METEO_BASE_URL, METEO_DATASET_ID):
     print(f"   - ❌ Échecs: {failed}")
     print(f"   - 📁 Dossier: {os.path.abspath(DOWNLOAD_DIR)}")
 
-    downloaded_files = [f for f in downloaded_files if f.endswith('.csv.gz')]
+    downloaded_files = [Path(f) for f in downloaded_files if f.endswith('.csv.gz')]
     return downloaded_files
 
