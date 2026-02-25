@@ -140,7 +140,6 @@ def main():
         not_uploaded = upload(dataset_DOI=RDG_DATASET_DOI,
                               OUTPUT_DIR=OUTPUT_DIR,
                               file_paths=merged_files,
-                              file_categories=file_categories,
                               overwrite=args.overwrite,
                               RDG_BASE_URL=RDG_BASE_URL,
                               RDG_API_TOKEN=RDG_API_TOKEN)
