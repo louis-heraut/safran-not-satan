@@ -126,7 +126,7 @@ logs: ## Affiche les logs du service en temps réel
 	@echo "$(GREEN)Logs en temps réel (Ctrl+C pour quitter) :$(NC)"
 	sudo journalctl -u safran-sync.service -f
 
-last-run: ## Affiche les logs de la dernière exécution
+logs-last-run: ## Affiche les logs de la dernière exécution
 	@echo "$(GREEN)Logs de la dernière exécution :$(NC)"
 	@sudo journalctl -u safran-sync.service --since "24 hours ago" --no-pager | tail -50
 

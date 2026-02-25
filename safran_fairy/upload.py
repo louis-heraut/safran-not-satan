@@ -45,8 +45,7 @@ def upload(dataset_DOI: str,
            directory_labels: list = None,
            overwrite: bool = False,
            RDG_BASE_URL: str = os.getenv("RDG_BASE_URL"),
-           RDG_API_TOKEN: str = os.getenv("RDG_API_TOKEN"),
-           verbose: bool = True):
+           RDG_API_TOKEN: str = os.getenv("RDG_API_TOKEN")):
 
     tprint("split", "small")
     
@@ -136,3 +135,32 @@ def upload(dataset_DOI: str,
         print(f"   - ⚠️  {len(not_uploaded)} échec(s)")
     
     return not_uploaded
+
+
+
+def publish(dataset_DOI: str,
+            type: str = "major",
+            RDG_BASE_URL: str = os.getenv("RDG_BASE_URL"),
+            RDG_API_TOKEN: str = os.getenv("RDG_API_TOKEN")):
+
+    tprint("publish", "small")
+    
+    print("\nPUBLISH DATASET")
+    print(f"   Dataset: {dataset_DOI}")
+    print(f"   Type: {type}")
+    
+    # Construire l'URL
+    url = f"{RDG_BASE_URL}/api/datasets/:persistentId/actions/:publish"
+    params = {"persistentId": dataset_DOI, "type": type}
+    headers = {"X-Dataverse-key": RDG_API_TOKEN}
+    
+    response = requests.post(url, params=params, headers=headers)
+    
+    if response.status_code == 200:
+        if verbose:
+            print(f"\n✅ Dataset {dataset_DOI} publié avec succès")
+    else:
+        print(f"\n❌ Échec de publication: {response.status_code} - {response.text}")
+        return False
+    
+    return True

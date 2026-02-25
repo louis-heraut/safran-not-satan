@@ -4,4 +4,4 @@ from .decompress import decompress
 from .split import split
 from .convert import convert
 from .merge import merge
-from .upload import upload
+from .upload import upload, publish

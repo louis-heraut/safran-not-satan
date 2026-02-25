@@ -38,7 +38,7 @@ if MODE == "dev":
         pass
 
 
-from safran_fairy import download, decompress, split, convert, merge, upload, clean
+from safran_fairy import download, decompress, split, convert, merge, upload, publish, clean
 
 
 def main():
@@ -62,6 +62,8 @@ def main():
                         help='Fusionne temporellement')
     parser.add_argument('--upload', action='store_true',
                         help='Upload sur Dataverse')
+    parser.add_argument('--publish', action='store_true',
+                        help='Publie sur Dataverse')
     parser.add_argument('--clean', action='store_true',
                         help='Nettoie les anciennes versions')
 
@@ -72,7 +74,8 @@ def main():
     args = parser.parse_args()
     
     if not any([args.all, args.download, args.decompress, args.split,
-                args.convert, args.merge, args.upload, args.clean, args.process]):
+                args.convert, args.merge, args.upload, args.publish,
+                args.clean, args.process]):
         args.all = True
 
     # Configuration
@@ -166,7 +169,13 @@ def main():
                         'previous': r'previous-(\d{8})-(\d{8})'},
               RDG_BASE_URL=RDG_BASE_URL,
               RDG_API_TOKEN=RDG_API_TOKEN)
-    
+        
+    # 8. PUBLISH
+    if args.all or args.publish:
+        publish(dataset_DOI=RDG_DATASET_DOI,
+                RDG_BASE_URL=RDG_BASE_URL,
+                RDG_API_TOKEN=RDG_API_TOKEN)
+        
     print("\n✨ Pipeline terminé avec succès!")
 
 
