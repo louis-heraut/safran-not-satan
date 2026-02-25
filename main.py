@@ -44,23 +44,37 @@ from safran_fairy import download, decompress, split, convert, merge, upload, cl
 def main():
     # Arguments en ligne de commande
     parser = argparse.ArgumentParser(description='SAFRAN Fairy - Pipeline de traitement')
+
+    # Pipeline complet
     parser.add_argument('--all', action='store_true',
                         help='Exécute le pipeline complet')
-    parser.add_argument('--download', action='store_true', help='Télécharge uniquement')
-    parser.add_argument('--process', action='store_true',
-                        help='Traite uniquement (decompress + split + convert + merge)')
+
+    # Étapes individuelles
+    parser.add_argument('--download', action='store_true',
+                        help='Télécharge les fichiers')
+    parser.add_argument('--decompress', action='store_true',
+                        help='Décompresse les fichiers')
+    parser.add_argument('--split', action='store_true',
+                        help='Découpe les CSV par variable')
+    parser.add_argument('--convert', action='store_true',
+                        help='Convertit en NetCDF')
+    parser.add_argument('--merge', action='store_true',
+                        help='Fusionne temporellement')
     parser.add_argument('--upload', action='store_true',
-                        help='Upload uniquement')
+                        help='Upload sur Dataverse')
     parser.add_argument('--clean', action='store_true',
                         help='Nettoie les anciennes versions')
-    parser.add_argument('--overwrite', action='store_true',
-                        help='Écrase les fichiers existants sur Dataverse')
+
+    # Options
+    parser.add_argument('--overwrite',   action='store_true', help='Écrase les fichiers existants sur Dataverse')
+    parser.add_argument('--process',     action='store_true', help='Traite uniquement (decompress + split + convert + merge)')
+
     args = parser.parse_args()
     
-    # Si aucun argument, exécuter --all par défaut
-    if not any([args.all, args.download, args.process, args.upload, args.clean]):
+    if not any([args.all, args.download, args.decompress, args.split,
+                args.convert, args.merge, args.upload, args.clean, args.process]):
         args.all = True
-    
+
     # Configuration
     CONFIG_FILE = os.getenv("CONFIG_FILE")
     config = load_config(CONFIG_FILE)
@@ -97,31 +111,31 @@ def main():
     
     # 1. TÉLÉCHARGEMENT
     if args.all or args.download:
-        downloaded_files = download(STATE_FILE, DOWNLOAD_DIR,
-                                    METEO_BASE_URL, METEO_DATASET_ID)
-        
+        downloaded_files = download(...)
         if not downloaded_files and args.download:
             print("\n✨ Rien de nouveau à télécharger!")
             if not args.all:
                 return
 
-    # 2. TRAITEMENT
-    if args.all or args.process:
-        # Décompression
+    # 2. DÉCOMPRESSION
+    if args.all or args.process or args.decompress:
         decompressed_files = decompress(DOWNLOAD_DIR, RAW_DIR,
                                         downloaded_files)
-        
-        # Découpage
+
+    # 3. SPLIT
+    if args.all or args.process or args.split:
         splited_files = split(RAW_DIR, SPLIT_DIR, decompressed_files)
-        
-        # Conversion NetCDF
+
+    # 4. CONVERSION
+    if args.all or args.process or args.convert:
         converted_files = convert(SPLIT_DIR, CONVERT_DIR,
-                                 metadata_variables, splited_files)
-        
-        # Fusion temporelle
+                                  metadata_variables, splited_files)
+
+    # 5. MERGE
+    if args.all or args.process or args.merge:
         merged_files = merge(CONVERT_DIR, OUTPUT_DIR, converted_files)
-    
-    # 3. UPLOAD
+
+    # 6. UPLOAD
     if args.all or args.upload:
         # Extraire les catégories depuis les noms de fichiers
         file_categories = [
@@ -139,7 +153,7 @@ def main():
         if not_uploaded:
             sys.exit(1)
         
-    # 4. NETTOYAGE
+    # 7. NETTOYAGE
     if args.clean:
         # Nettoyage local
         clean(directory=DOWNLOAD_DIR)

@@ -71,6 +71,22 @@ download: ## Télécharge les nouvelles données uniquement
 	@echo "$(GREEN)Téléchargement des données...$(NC)"
 	$(PYTHON_VENV) main.py --download
 
+decompress: ## Décompresse les fichiers téléchargés
+	@echo "$(GREEN)Décompression des données...$(NC)"
+	$(PYTHON_VENV) main.py --decompress
+
+split: ## Découpe les CSV par variable
+	@echo "$(GREEN)Découpage des données...$(NC)"
+	$(PYTHON_VENV) main.py --split
+
+convert: ## Convertit en NetCDF
+	@echo "$(GREEN)Conversion en NetCDF...$(NC)"
+	$(PYTHON_VENV) main.py --convert
+
+merge: ## Fusionne temporellement
+	@echo "$(GREEN)Fusion temporelle...$(NC)"
+	$(PYTHON_VENV) main.py --merge
+
 process: ## Traite les données (decompress + split + convert + merge)
 	@echo "$(GREEN)Traitement des données...$(NC)"
 	$(PYTHON_VENV) main.py --process
