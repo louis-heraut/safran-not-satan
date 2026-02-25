@@ -79,8 +79,6 @@ def create_netcdf(file, CONVERT_DIR, metadata_variables):
             ds[var].attrs['precision'] = var_meta['precision']
         if pd.notna(var_meta['periode_agregation']):
             ds[var].attrs['aggregation_period'] = var_meta['periode_agregation']
-        if pd.notna(var_meta['methode_agregation']):
-            ds[var].attrs['aggregation_method'] = var_meta['methode_agregation']
         ds[var].attrs['grid_mapping'] = 'crs'
     
     output_file = CONVERT_DIR / file.with_suffix('.nc').name
