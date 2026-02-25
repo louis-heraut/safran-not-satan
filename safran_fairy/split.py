@@ -2,9 +2,13 @@ import os
 from pathlib import Path
 import pandas as pd
 from art import tprint
+from dotenv import load_dotenv
 
 from .clean import clean
 
+
+load_dotenv()
+MODE = os.getenv("MODE")
 
 if MODE == "dev":
     pd.set_option('display.max_columns', None)
