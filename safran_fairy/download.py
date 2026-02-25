@@ -159,7 +159,7 @@ def download(STATE_FILE, DOWNLOAD_DIR, METEO_BASE_URL, METEO_DATASET_ID):
             state[resource['id']] = result
             save_state(state, STATE_FILE)
             success += 1
-            downloaded_files.append(result['filename'])
+            downloaded_files.append(Path(DOWNLOAD_DIR) / result['filename'])
         else:
             failed += 1
 
@@ -170,6 +170,6 @@ def download(STATE_FILE, DOWNLOAD_DIR, METEO_BASE_URL, METEO_DATASET_ID):
     print(f"   - ❌ Échecs: {failed}")
     print(f"   - 📁 Dossier: {os.path.abspath(DOWNLOAD_DIR)}")
 
-    downloaded_files = [Path(f) for f in downloaded_files if f.endswith('.csv.gz')]
+    downloaded_files = [f for f in downloaded_files if f.name.endswith('.csv.gz')]
     return downloaded_files
 
