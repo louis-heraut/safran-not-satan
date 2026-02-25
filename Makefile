@@ -69,35 +69,31 @@ run-as-service: ## Exécute comme le ferait le service systemd (nécessite sudo)
 
 download: ## Télécharge les nouvelles données uniquement
 	@echo "$(GREEN)Téléchargement des données...$(NC)"
-	$(PYTHON_VENV) main.py --download
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --download
 
 decompress: ## Décompresse les fichiers téléchargés
 	@echo "$(GREEN)Décompression des données...$(NC)"
-	$(PYTHON_VENV) main.py --decompress
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --decompress
 
 split: ## Découpe les CSV par variable
 	@echo "$(GREEN)Découpage des données...$(NC)"
-	$(PYTHON_VENV) main.py --split
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --split
 
 convert: ## Convertit en NetCDF
 	@echo "$(GREEN)Conversion en NetCDF...$(NC)"
-	$(PYTHON_VENV) main.py --convert
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --convert
 
 merge: ## Fusionne temporellement
 	@echo "$(GREEN)Fusion temporelle...$(NC)"
-	$(PYTHON_VENV) main.py --merge
-
-process: ## Traite les données (decompress + split + convert + merge)
-	@echo "$(GREEN)Traitement des données...$(NC)"
-	$(PYTHON_VENV) main.py --process
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --merge
 
 upload: ## Upload sur Dataverse
 	@echo "$(GREEN)Upload sur Dataverse...$(NC)"
-	$(PYTHON_VENV) main.py --upload
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --upload
 
 clean: ## Nettoie les anciennes versions (local + Dataverse)
 	@echo "$(GREEN)Nettoyage des anciennes versions...$(NC)"
-	$(PYTHON_VENV) main.py --clean
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --clean
 
 hard-clean: ## Nettoie les fichiers temporaires (⚠️ destructif mais garde les outputs)
 	@echo "$(YELLOW)Nettoyage des fichiers temporaires...$(NC)"
