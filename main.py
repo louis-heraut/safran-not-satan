@@ -137,12 +137,6 @@ def main():
 
     # 6. UPLOAD
     if args.all or args.upload:
-        # Extraire les catégories depuis les noms de fichiers
-        file_categories = [
-            [f.stem.split('_QUOT_SIM2_')[0],
-             f.stem.split('_QUOT_SIM2_')[1].split('-')[0]]
-            for f in merged_files
-        ]            
         not_uploaded = upload(dataset_DOI=RDG_DATASET_DOI,
                               OUTPUT_DIR=OUTPUT_DIR,
                               file_paths=merged_files,

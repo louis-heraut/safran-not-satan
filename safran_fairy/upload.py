@@ -43,7 +43,6 @@ def upload(dataset_DOI: str,
            OUTPUT_DIR: str,
            file_paths: list = None,
            directory_labels: list = None,
-           file_categories: list = None,
            overwrite: bool = False,
            RDG_BASE_URL: str = os.getenv("RDG_BASE_URL"),
            RDG_API_TOKEN: str = os.getenv("RDG_API_TOKEN"),
@@ -60,6 +59,10 @@ def upload(dataset_DOI: str,
     print("\nUPLOAD DATAVERSE")
     print(f"   Dataset: {dataset_DOI}")
     print(f"   Fichiers: {len(file_paths)}")
+
+    file_categories = [[f.stem.split('_QUOT_SIM2_')[0],
+                        f.stem.split('_QUOT_SIM2_')[1].split('-')[0]]
+                       for f in file_paths]
     
     # Récupérer la liste des fichiers existants
     existing_files = get_existing_files(dataset_DOI, RDG_BASE_URL, RDG_API_TOKEN)
