@@ -3,6 +3,7 @@ import pandas as pd
 from pathlib import Path
 import xarray as xr
 from art import tprint
+from datetime import datetime, timedelta
 
 from .clean import clean
 
@@ -33,10 +34,28 @@ def get_set_variables(files):
     return variables
 
 
-def concatenate_nc_files(files, output_file):
+def concatenate_nc_files(files, output_file, cutoff_date=None):
     import subprocess
-    subprocess.run(['ncrcat', '-O'] + [str(f) for f in files] + [str(output_file)])
-
+    
+    if cutoff_date is None:
+        subprocess.run(['ncrcat', '-h', '-O'] + [str(f) for f in files] + [str(output_file)])
+    else:
+        base_files = files[:-1]
+        new_files = files[-1:]
+        
+        cutoff_exclusive = (datetime.strptime(cutoff_date, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
+        
+        subprocess.run(
+            ['ncrcat', '-h', '-O', '-d', f'time,,{cutoff_exclusive}']
+            + [str(f) for f in base_files]
+            + [str(output_file)]
+        )
+        subprocess.run(
+            ['ncrcat', '-h', '-A', str(output_file)]
+            + [str(f) for f in new_files]
+            + [str(output_file)]
+        )
+        
 
 def merge_by_type(file_type, source_getter, base_getter, CONVERT_DIR, OUTPUT_DIR, converted_files):
     """
@@ -85,22 +104,28 @@ def merge_by_type(file_type, source_getter, base_getter, CONVERT_DIR, OUTPUT_DIR
     print(f"   → {len(base_files)} fichier(s) de base + {len(files_to_update)} nouveau(x)")
 
     merged_files = []
-    
     for i, var in enumerate(unique_vars, 1):
         print(f"\n[{i}/{len(unique_vars)}]")
-        
+    
         var_base = [f for f, v in zip(base_files, base_variables) if v == var]
         var_new = [f for f, v in zip(files_to_update, variables_to_update) if v == var]
+
+        cutoff_date = None
+        if file_type == 'latest' and var_base:
+            cutoff_raw = var_new[0].stem.split('latest-')[1].split('-')[0]
+            cutoff_date = f"{cutoff_raw[:4]}-{cutoff_raw[4:6]}-{cutoff_raw[6:8]}"
+            print(f"   ✂️  Troncature previous avant {cutoff_date}")
+
         var_files = var_base + var_new
 
         if file_type == "historical":
             print(f"\n🧩 Merge {len(var_base)} historical NetCDF")
         else:
-            print(f"\n🧩 Merge {len(var_base)} historical NetCDF and {len(var_new)} {file_type} NetCDF")
+            print(f"\n🧩 Merge {len(var_base)} previous NetCDF and {len(var_new)} {file_type} NetCDF")
         print(f"   → variable: {var}")
         
         tmp_file = OUTPUT_DIR / f"{var}_QUOT_SIM2_{file_type}_tmp.nc"
-        concatenate_nc_files(var_files, tmp_file)
+        concatenate_nc_files(var_files, tmp_file, cutoff_date=cutoff_date)
 
         ds = xr.open_dataset(tmp_file)
         min_date = ds.time.min().dt.strftime('%Y%m%d').values
@@ -167,10 +192,10 @@ def merge(CONVERT_DIR, OUTPUT_DIR, converted_files=None):
     if converted_files is None:
         converted_files = list(Path(CONVERT_DIR).glob("*.nc"))
 
-    merged_historical_files = merge_historical(CONVERT_DIR, OUTPUT_DIR,
-                                               converted_files)
-    merged_previous_files = merge_previous(CONVERT_DIR, OUTPUT_DIR,
-                                           converted_files)
+    # merged_historical_files = merge_historical(CONVERT_DIR, OUTPUT_DIR,
+                                               # converted_files)
+    # merged_previous_files = merge_previous(CONVERT_DIR, OUTPUT_DIR,
+                                           # converted_files)
     merged_latest_files = merge_latest(CONVERT_DIR, OUTPUT_DIR,
                                        converted_files)
     merged_files = merged_historical_files + merged_previous_files + merged_latest_files 

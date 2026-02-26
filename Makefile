@@ -1,4 +1,4 @@
-.PHONY: help install install-prod install-service uninstall-service update run run-as-service download process upload publish clean hard-clean hard-clean-all status logs last-run stats check-env backup test
+.PHONY: help install install-prod install-service uninstall-service update run run-as-service step-download step-decompress step-split step-convert step-merge step-upload step-publish step-clean service-stop service-restart service-status service-logs service-logs-last-run data-hard-clean data-hard-clean-all data-stats
 
 # Variables
 PYTHON := python3
@@ -62,51 +62,75 @@ run: ## Exécute le pipeline (dev, avec ton user)
 	@echo "$(GREEN)Exécution du pipeline complet...$(NC)"
 	$(PYTHON_VENV) main.py --all
 
+step-download: ## Télécharge les nouvelles données uniquement
+	@echo "$(GREEN)Téléchargement des données...$(NC)"
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --download
+
+step-decompress: ## Décompresse les fichiers téléchargés
+	@echo "$(GREEN)Décompression des données...$(NC)"
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --decompress
+
+step-split: ## Découpe les CSV par variable
+	@echo "$(GREEN)Découpage des données...$(NC)"
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --split
+
+step-convert: ## Convertit en NetCDF
+	@echo "$(GREEN)Conversion en NetCDF...$(NC)"
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --convert
+
+step-merge: ## Fusionne temporellement
+	@echo "$(GREEN)Fusion temporelle...$(NC)"
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --merge
+
+step-upload: ## Upload sur Dataverse
+	@echo "$(GREEN)Upload sur Dataverse...$(NC)"
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --upload
+
+step-publish: ## Publie sur Dataverse
+	@echo "$(GREEN)Publie sur Dataverse...$(NC)"
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --publish
+
+step-clean: ## Nettoie les anciennes versions (local + Dataverse)
+	@echo "$(GREEN)Nettoyage des anciennes versions...$(NC)"
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --clean
+
 run-as-service: ## Exécute comme le ferait le service systemd (nécessite sudo)
 	@echo "$(GREEN)Exécution du pipeline complet par le service...$(NC)"
 	sudo -u safran-fairy /opt/safran-fairy/.python_env/bin/python /opt/safran-fairy/main.py --all
 
+service-stop: ## Stoppe le run en cours (le timer reste actif)
+	@echo "$(YELLOW)Arrêt du run en cours...$(NC)"
+	sudo systemctl stop safran-sync.service
+	@echo "$(GREEN)✓ Run arrêté (le timer relancera à 2h00)$(NC)"
 
-download: ## Télécharge les nouvelles données uniquement
-	@echo "$(GREEN)Téléchargement des données...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --download
+service-restart: ## Relance immédiatement le service sans attendre le timer
+	@echo "$(GREEN)Relance immédiate du service...$(NC)"
+	sudo systemctl start safran-sync.service
+	@echo "$(GREEN)✓ Service relancé$(NC)"
 
-decompress: ## Décompresse les fichiers téléchargés
-	@echo "$(GREEN)Décompression des données...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --decompress
+service-status: ## Affiche le statut du service systemd
+	@echo "$(GREEN)Statut du service :$(NC)"
+	@sudo systemctl status safran-sync.timer --no-pager || true
+	@echo ""
+	@echo "$(GREEN)Prochaines exécutions :$(NC)"
+	@systemctl list-timers safran-sync.timer --no-pager || true
 
-split: ## Découpe les CSV par variable
-	@echo "$(GREEN)Découpage des données...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --split
+service-logs: ## Affiche les logs du service en temps réel
+	@echo "$(GREEN)Logs en temps réel (Ctrl+C pour quitter) :$(NC)"
+	sudo journalctl -u safran-sync.service -f
 
-convert: ## Convertit en NetCDF
-	@echo "$(GREEN)Conversion en NetCDF...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --convert
+service-logs-last-run: ## Affiche les logs de la dernière exécution
+	@echo "$(GREEN)Logs de la dernière exécution :$(NC)"
+	@sudo journalctl -u safran-sync.service --since "24 hours ago" --no-pager | tail -50
 
-merge: ## Fusionne temporellement
-	@echo "$(GREEN)Fusion temporelle...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --merge
-
-upload: ## Upload sur Dataverse
-	@echo "$(GREEN)Upload sur Dataverse...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --upload
-
-publish: ## Publie sur Dataverse
-	@echo "$(GREEN)Publie sur Dataverse...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --publish
-
-clean: ## Nettoie les anciennes versions (local + Dataverse)
-	@echo "$(GREEN)Nettoyage des anciennes versions...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --clean
-
-hard-clean: ## Nettoie les fichiers temporaires (⚠️ destructif mais garde les outputs)
+data-hard-clean: ## Nettoie les fichiers temporaires (⚠️ destructif mais garde les outputs)
 	@echo "$(YELLOW)Nettoyage des fichiers temporaires...$(NC)"
 	rm -rf /var/lib/safran-fairy/01_data-raw/*
 	rm -rf /var/lib/safran-fairy/02_data-split/*
 	rm -rf /var/lib/safran-fairy/03_data-convert/*
 	@echo "$(GREEN)✓ Nettoyage terminé$(NC)"
 
-hard-clean-all: ## Nettoie TOUS les fichiers générés (⚠️ destructif)
+data-hard-clean-all: ## Nettoie TOUS les fichiers générés (⚠️ destructif)
 	@echo "$(RED)⚠️  Suppression de TOUTES les données...$(NC)"
 	@read -p "Êtes-vous sûr ? [y/N] " -n 1 -r; \
 	echo; \
@@ -119,22 +143,7 @@ hard-clean-all: ## Nettoie TOUS les fichiers générés (⚠️ destructif)
 		echo "$(GREEN)✓ Nettoyage complet terminé$(NC)"; \
 	fi
 
-status: ## Affiche le statut du service systemd
-	@echo "$(GREEN)Statut du service :$(NC)"
-	@sudo systemctl status safran-sync.timer --no-pager || true
-	@echo ""
-	@echo "$(GREEN)Prochaines exécutions :$(NC)"
-	@systemctl list-timers safran-sync.timer --no-pager || true
-
-logs: ## Affiche les logs du service en temps réel
-	@echo "$(GREEN)Logs en temps réel (Ctrl+C pour quitter) :$(NC)"
-	sudo journalctl -u safran-sync.service -f
-
-logs-last-run: ## Affiche les logs de la dernière exécution
-	@echo "$(GREEN)Logs de la dernière exécution :$(NC)"
-	@sudo journalctl -u safran-sync.service --since "24 hours ago" --no-pager | tail -50
-
-stats: ## Affiche des statistiques sur les données
+data-stats: ## Affiche des statistiques sur les données
 	@echo "$(GREEN)Statistiques SAFRAN Fairy :$(NC)"
 	@echo ""
 	@echo "Espace disque :"

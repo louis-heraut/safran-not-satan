@@ -28,6 +28,31 @@ def print_welcome(welcome_file):
 load_dotenv()
 MODE = os.getenv("MODE")
 
+# Configuration
+CONFIG_FILE = os.getenv("CONFIG_FILE")
+config = load_config(CONFIG_FILE)
+
+RESOURCES_DIR = Path("resources")
+WELCOME_FILE = RESOURCES_DIR / config['welcome_file']
+METADATA_VARIABLES_FILE = RESOURCES_DIR / config['metadata_variables_file']
+STATE_FILE = config['state_file']
+
+DOWNLOAD_DIR = config['download_dir']
+RAW_DIR = config['raw_dir']
+SPLIT_DIR = config['split_dir']
+CONVERT_DIR = config['convert_dir']
+OUTPUT_DIR = config['output_dir']
+    
+METEO_BASE_URL = config['meteo_base_url']
+METEO_DATASET_ID = config['meteo_dataset_id']
+    
+RDG_BASE_URL = config['rdg_base_url']
+RDG_DATASET_DOI = config['rdg_dataset_doi']
+RDG_API_TOKEN = os.getenv("RDG_API_TOKEN")
+
+metadata_variables = pd.read_csv(METADATA_VARIABLES_FILE,
+                                 index_col='variable')
+    
 # Setup dev mode
 if MODE == "dev":
     try:
@@ -77,31 +102,6 @@ def main():
                 args.convert, args.merge, args.upload, args.publish,
                 args.clean, args.process]):
         args.all = True
-
-    # Configuration
-    CONFIG_FILE = os.getenv("CONFIG_FILE")
-    config = load_config(CONFIG_FILE)
-
-    RESOURCES_DIR = Path("resources")
-    WELCOME_FILE = RESOURCES_DIR / config['welcome_file']
-    METADATA_VARIABLES_FILE = RESOURCES_DIR / config['metadata_variables_file']
-    STATE_FILE = config['state_file']
-    
-    DOWNLOAD_DIR = config['download_dir']
-    RAW_DIR = config['raw_dir']
-    SPLIT_DIR = config['split_dir']
-    CONVERT_DIR = config['convert_dir']
-    OUTPUT_DIR = config['output_dir']
-    
-    METEO_BASE_URL = config['meteo_base_url']
-    METEO_DATASET_ID = config['meteo_dataset_id']
-    
-    RDG_BASE_URL = config['rdg_base_url']
-    RDG_DATASET_DOI = config['rdg_dataset_doi']
-    RDG_API_TOKEN = os.getenv("RDG_API_TOKEN")
-    
-    metadata_variables = pd.read_csv(METADATA_VARIABLES_FILE,
-                                     index_col='variable')
     
     print_welcome(WELCOME_FILE)
     
