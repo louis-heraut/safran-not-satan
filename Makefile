@@ -60,7 +60,7 @@ update: ## Met à jour le projet depuis git
 
 run-all: ## Exécute le pipeline (dev, avec ton user)
 	@echo "$(GREEN)Exécution du pipeline complet...$(NC)"
-	$(PYTHON_VENV) main.py --all
+	$(PYTHON_VENV) main.py --all --overwrite
 
 run-download: ## Télécharge les nouvelles données uniquement
 	@echo "$(GREEN)Téléchargement des données...$(NC)"
@@ -84,15 +84,15 @@ run-merge: ## Fusionne temporellement
 
 run-upload: ## Upload sur Dataverse
 	@echo "$(GREEN)Upload sur Dataverse...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --upload
-
-run-publish: ## Publie sur Dataverse
-	@echo "$(GREEN)Publie sur Dataverse...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --publish
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --upload --overwrite
 
 run-clean: ## Nettoie les anciennes versions (local + Dataverse)
 	@echo "$(GREEN)Nettoyage des anciennes versions...$(NC)"
 	sudo -u safran-fairy $(PYTHON_VENV) main.py --clean
+
+run-publish: ## Publie sur Dataverse
+	@echo "$(GREEN)Publie sur Dataverse...$(NC)"
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --publish
 
 run-as-service: ## Exécute comme le ferait le service systemd (nécessite sudo)
 	@echo "$(GREEN)Exécution du pipeline complet par le service...$(NC)"
