@@ -1,4 +1,4 @@
-.PHONY: help install install-prod install-service uninstall-service update run run-as-service step-download step-decompress step-split step-convert step-merge step-upload step-publish step-clean service-stop service-restart service-status service-logs service-logs-last-run data-hard-clean data-hard-clean-all data-stats
+.PHONY: help install install-prod install-service uninstall-service update run-all run-as-service run-download run-decompress run-split run-convert run-merge run-upload run-publish run-clean service-stop service-restart service-status service-logs service-logs-last-run data-hard-clean data-hard-clean-all data-stats
 
 # Variables
 PYTHON := python3
@@ -58,39 +58,39 @@ update: ## Met à jour le projet depuis git
 	$(PIP) install --upgrade -r requirements.txt
 	@echo "$(GREEN)✓ Mise à jour terminée$(NC)"
 
-run: ## Exécute le pipeline (dev, avec ton user)
+run-all: ## Exécute le pipeline (dev, avec ton user)
 	@echo "$(GREEN)Exécution du pipeline complet...$(NC)"
 	$(PYTHON_VENV) main.py --all
 
-step-download: ## Télécharge les nouvelles données uniquement
+run-download: ## Télécharge les nouvelles données uniquement
 	@echo "$(GREEN)Téléchargement des données...$(NC)"
 	sudo -u safran-fairy $(PYTHON_VENV) main.py --download
 
-step-decompress: ## Décompresse les fichiers téléchargés
+run-decompress: ## Décompresse les fichiers téléchargés
 	@echo "$(GREEN)Décompression des données...$(NC)"
 	sudo -u safran-fairy $(PYTHON_VENV) main.py --decompress
 
-step-split: ## Découpe les CSV par variable
+run-split: ## Découpe les CSV par variable
 	@echo "$(GREEN)Découpage des données...$(NC)"
 	sudo -u safran-fairy $(PYTHON_VENV) main.py --split
 
-step-convert: ## Convertit en NetCDF
+run-convert: ## Convertit en NetCDF
 	@echo "$(GREEN)Conversion en NetCDF...$(NC)"
 	sudo -u safran-fairy $(PYTHON_VENV) main.py --convert
 
-step-merge: ## Fusionne temporellement
+run-merge: ## Fusionne temporellement
 	@echo "$(GREEN)Fusion temporelle...$(NC)"
 	sudo -u safran-fairy $(PYTHON_VENV) main.py --merge
 
-step-upload: ## Upload sur Dataverse
+run-upload: ## Upload sur Dataverse
 	@echo "$(GREEN)Upload sur Dataverse...$(NC)"
 	sudo -u safran-fairy $(PYTHON_VENV) main.py --upload
 
-step-publish: ## Publie sur Dataverse
+run-publish: ## Publie sur Dataverse
 	@echo "$(GREEN)Publie sur Dataverse...$(NC)"
 	sudo -u safran-fairy $(PYTHON_VENV) main.py --publish
 
-step-clean: ## Nettoie les anciennes versions (local + Dataverse)
+run-clean: ## Nettoie les anciennes versions (local + Dataverse)
 	@echo "$(GREEN)Nettoyage des anciennes versions...$(NC)"
 	sudo -u safran-fairy $(PYTHON_VENV) main.py --clean
 
