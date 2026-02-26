@@ -192,10 +192,10 @@ def merge(CONVERT_DIR, OUTPUT_DIR, converted_files=None):
     if converted_files is None:
         converted_files = list(Path(CONVERT_DIR).glob("*.nc"))
 
-    # merged_historical_files = merge_historical(CONVERT_DIR, OUTPUT_DIR,
-                                               # converted_files)
-    # merged_previous_files = merge_previous(CONVERT_DIR, OUTPUT_DIR,
-                                           # converted_files)
+    merged_historical_files = merge_historical(CONVERT_DIR, OUTPUT_DIR,
+                                               converted_files)
+    merged_previous_files = merge_previous(CONVERT_DIR, OUTPUT_DIR,
+                                           converted_files)
     merged_latest_files = merge_latest(CONVERT_DIR, OUTPUT_DIR,
                                        converted_files)
     merged_files = merged_historical_files + merged_previous_files + merged_latest_files 
