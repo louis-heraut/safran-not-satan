@@ -51,9 +51,9 @@ RDG_BASE_URL = config['RDG_BASE_URL']
 RDG_DATASET_DOI = config['RDG_DATASET_DOI']
 RDG_API_TOKEN = os.getenv("RDG_API_TOKEN")
 
-S3_ENDPOINT = config['OUTPUT_DIR']
-S3_BUCKET = config['OUTPUT_DIR']
-S3_PREFIX = config['OUTPUT_DIR']
+S3_ENDPOINT = config['S3_ENDPOINT']
+S3_BUCKET = config['S3_BUCKET']
+S3_PREFIX = config['S3_PREFIX']
 S3_ACCESS_KEY = os.getenv('S3_ACCESS_KEY')
 S3_SECRET_KEY = os.getenv('S3_SECRET_KEY')
 
@@ -70,7 +70,7 @@ if MODE == "dev":
         pass
 
 
-from safran_fairy import download, decompress, split, convert, merge, upload_s3, update_dataverse, publish, clean
+from safran_fairy import download, decompress, split, convert, merge, upload_s3, update_dataverse_index, publish, clean
 
 
 def main():
@@ -150,19 +150,16 @@ def main():
 
     # 6. UPLOAD
     if args.all or args.upload:
-        # not_uploaded = upload(dataset_DOI=RDG_DATASET_DOI,
-                              # OUTPUT_DIR=OUTPUT_DIR,
-                              # file_paths=merged_files,
-                              # overwrite=args.overwrite,
-                              # RDG_BASE_URL=RDG_BASE_URL,
-                              # RDG_API_TOKEN=RDG_API_TOKEN)
+        overwrite = args.overwrite
+        overwrite = True
         not_uploaded = upload_s3(S3_BUCKET=S3_BUCKET,
                                  S3_PREFIX=S3_PREFIX,
                                  OUTPUT_DIR=OUTPUT_DIR,
                                  file_paths=merged_files,
-                                 overwrite=args.overwrite,
+                                 overwrite=overwrite,
                                  S3_ACCESS_KEY=S3_ACCESS_KEY,
                                  S3_SECRET_KEY=S3_SECRET_KEY,
+                                 S3_ENDPOINT=S3_ENDPOINT,
                                  S3_REGION=S3_REGION)
         
         if not_uploaded:
@@ -181,13 +178,7 @@ def main():
                         'latest': r'latest-(\d{8})-(\d{8})',
                         'previous': r'previous-(\d{8})-(\d{8})'})
         
-        # Nettoyage Dataverse
-        # clean(dataset_DOI=RDG_DATASET_DOI,
-        #       patterns={'historical': r'historical-(\d{8})-(\d{8})',
-        #                 'latest': r'latest-(\d{8})-(\d{8})',
-        #                 'previous': r'previous-(\d{8})-(\d{8})'},
-        #       RDG_BASE_URL=RDG_BASE_URL,
-        #       RDG_API_TOKEN=RDG_API_TOKEN)
+        # Nettoyage S3
         clean(S3_BUCKET=S3_BUCKET,
               S3_PREFIX=S3_PREFIX, 
               patterns={'historical': r'historical-(\d{8})-(\d{8})',
@@ -195,8 +186,9 @@ def main():
                         'previous': r'previous-(\d{8})-(\d{8})'},
               S3_ACCESS_KEY=S3_ACCESS_KEY,
               S3_SECRET_KEY=S3_SECRET_KEY,
+              S3_ENDPOINT=S3_ENDPOINT,
               S3_REGION=S3_REGION)
-
+        
 
     # 8. UPDATE DATAVERSE
     if args.all or args.index:
@@ -205,6 +197,7 @@ def main():
                                S3_PREFIX=S3_PREFIX,
                                METADATA_VARIABLES_FILE=METADATA_VARIABLES_FILE,
                                INDEX_PATH=INDEX_PATH,
+                               S3_ENDPOINT=S3_ENDPOINT,
                                S3_REGION=S3_REGION,
                                RDG_DATASET_DOI=RDG_DATASET_DOI,
                                RDG_BASE_URL=RDG_BASE_URL,

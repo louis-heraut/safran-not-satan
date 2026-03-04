@@ -4,4 +4,6 @@ from .decompress import decompress
 from .split import split
 from .convert import convert
 from .merge import merge
+from .upload_s3 import upload_s3
 from .upload import upload, publish
+from .update_dataverse import update_dataverse_index

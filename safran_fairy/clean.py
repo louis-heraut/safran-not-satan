@@ -4,6 +4,7 @@ import requests
 from pathlib import Path
 from datetime import datetime
 from art import tprint
+import boto3
 
 
 def clean_local(directory, extensions, patterns):
@@ -109,8 +110,8 @@ def clean_s3(S3_BUCKET: str,
                  'latest': r'latest-(\d{8})-(\d{8})',
                  'previous': r'previous-(\d{4})-(\d{6})'
              },
-             S3_ACCESS_KEY: str = os.getenv("S3_ACCESS_KEY_ID"),
-             S3_SECRET_KEY: str = os.getenv("S3_SECRET_ACCESS_KEY"),
+             S3_ACCESS_KEY: str = os.getenv("S3_ACCESS_KEY"),
+             S3_SECRET_KEY: str = os.getenv("S3_SECRET_KEY"),
              S3_ENDPOINT: str = os.getenv("S3_ENDPOINT"),
              S3_REGION: str = os.getenv("S3_REGION", "eu-west-1")):
     """
@@ -184,8 +185,9 @@ def clean(directory=None,
           },
           RDG_BASE_URL: str = os.getenv("RDG_BASE_URL"),
           RDG_API_TOKEN: str = os.getenv("RDG_API_TOKEN"),
-          S3_ACCESS_KEY: str = os.getenv("S3_ACCESS_KEY_ID"),
-          S3_SECRET_KEY: str = os.getenv("S3_SECRET_ACCESS_KEY"),
+          S3_ACCESS_KEY: str = os.getenv("S3_ACCESS_KEY"),
+          S3_SECRET_KEY: str = os.getenv("S3_SECRET_KEY"),
+          S3_ENDPOINT: str = os.getenv("S3_ENDPOINT"),
           S3_REGION: str = os.getenv("S3_REGION", "eu-west-1")):
     """
     Nettoie un dossier local ET/OU un dataset Dataverse ET/OU un bucket S3.
@@ -204,5 +206,6 @@ def clean(directory=None,
                  extensions=extensions,
                  patterns=patterns,
                  S3_ACCESS_KEY=S3_ACCESS_KEY,
-                 S3_SECRET_KEY=S3_SECRET_ACCESS_KEY,
+                 S3_SECRET_KEY=S3_SECRET_KEY,
+                 S3_ENDPOINT=S3_ENDPOINT,
                  S3_REGION=S3_REGION)
