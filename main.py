@@ -161,7 +161,6 @@ def main():
                                  S3_SECRET_KEY=S3_SECRET_KEY,
                                  S3_ENDPOINT=S3_ENDPOINT,
                                  S3_REGION=S3_REGION)
-        
         if not_uploaded:
             sys.exit(1)
             
