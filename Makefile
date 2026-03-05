@@ -1,4 +1,4 @@
-.PHONY: help install install-prod install-service uninstall-service update run-all run-as-service run-download run-decompress run-split run-convert run-merge run-upload run-publish run-clean service-stop service-restart service-status service-logs service-logs-last-run data-hard-clean data-hard-clean-all data-stats
+.PHONY: help install install-prod install-service uninstall-service update run-all run-as-service run-download run-decompress run-split run-convert run-merge run-upload run-clean run-index run-publish service-stop service-restart service-status service-logs service-logs-last-run data-hard-clean data-hard-clean-all data-stats
 
 # Variables
 PYTHON := python3
@@ -58,7 +58,7 @@ update: ## Met à jour le projet depuis git
 	$(PIP) install --upgrade -r requirements.txt
 	@echo "$(GREEN)✓ Mise à jour terminée$(NC)"
 
-run-all: ## Exécute le pipeline (dev, avec ton user)
+run-all: ## Exécute le pipeline complet (dev, avec ton user)
 	@echo "$(GREEN)Exécution du pipeline complet...$(NC)"
 	$(PYTHON_VENV) main.py --all --overwrite
 
@@ -82,16 +82,20 @@ run-merge: ## Fusionne temporellement
 	@echo "$(GREEN)Fusion temporelle...$(NC)"
 	sudo -u safran-fairy $(PYTHON_VENV) main.py --merge
 
-run-upload: ## Upload sur Dataverse
-	@echo "$(GREEN)Upload sur Dataverse...$(NC)"
+run-upload: ## Upload sur S3
+	@echo "$(GREEN)Upload sur S3...$(NC)"
 	sudo -u safran-fairy $(PYTHON_VENV) main.py --upload --overwrite
 
-run-clean: ## Nettoie les anciennes versions (local + Dataverse)
+run-clean: ## Nettoie les anciennes versions (local + S3)
 	@echo "$(GREEN)Nettoyage des anciennes versions...$(NC)"
 	sudo -u safran-fairy $(PYTHON_VENV) main.py --clean
 
-run-publish: ## Publie sur Dataverse
-	@echo "$(GREEN)Publie sur Dataverse...$(NC)"
+run-index: ## Génère et upload l'index HTML sur Dataverse
+	@echo "$(GREEN)Mise à jour de l'index Dataverse...$(NC)"
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --index
+
+run-publish: ## Publie le dataset sur Dataverse
+	@echo "$(GREEN)Publication sur Dataverse...$(NC)"
 	sudo -u safran-fairy $(PYTHON_VENV) main.py --publish
 
 run-as-service: ## Exécute comme le ferait le service systemd (nécessite sudo)
