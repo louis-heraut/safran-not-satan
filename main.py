@@ -56,6 +56,7 @@ RDG_API_TOKEN = os.getenv("RDG_API_TOKEN")
 
 S3_ENDPOINT = config['S3_ENDPOINT']
 S3_BUCKET = config['S3_BUCKET']
+S3_BUCKET_POLICY = config['S3_BUCKET_POLICY']
 S3_PREFIX = config['S3_PREFIX']
 S3_ACCESS_KEY = os.getenv('S3_ACCESS_KEY')
 S3_SECRET_KEY = os.getenv('S3_SECRET_KEY')
@@ -69,12 +70,11 @@ if MODE == "dev":
         get_ipython().run_line_magic('load_ext', 'autoreload')
         get_ipython().run_line_magic('autoreload', '2')
         print("🔧 Mode développement activé")
-        overwrite = True
     except:
         pass
 
 
-from safran_fairy import download, decompress, split, convert, merge, upload_s3, generate_stac_catalog, clean_local, clean_s3
+from safran_fairy import download, decompress, split, convert, merge, apply_s3_bucket_policy, upload_s3, generate_stac_catalog, clean_local, clean_s3
 
 
 def main():
@@ -86,6 +86,8 @@ def main():
                         help='Exécute le pipeline complet')
 
     # Étapes individuelles
+    parser.add_argument('--policy', action='store_true',
+                        help="Update le fichier policy de S3")
     parser.add_argument('--download', action='store_true',
                         help='Télécharge les fichiers')
     parser.add_argument('--decompress', action='store_true',
@@ -109,10 +111,12 @@ def main():
 
     args = parser.parse_args()
     
-    if not any([args.all, args.download, args.decompress, args.split,
+    if not any([args.all, args.policy, args.download, args.decompress, args.split,
                 args.convert, args.merge, args.upload, args.ui,
-                args.clean]):
+                args.clean,
+                args.overwrite]):
         args.all = True
+        args.overwrite = True
     
     print_welcome(WELCOME_FILE)
     
@@ -122,6 +126,15 @@ def main():
     splited_files = None
     converted_files = None
     merged_files = None
+
+    # 0. BUCKET POLICY
+    if args.policy:
+        apply_s3_bucket_policy(S3_BUCKET=S3_BUCKET,
+                               S3_BUCKET_POLICY=S3_BUCKET_POLICY,
+                               S3_ACCESS_KEY=S3_ACCESS_KEY,
+                               S3_SECRET_KEY=S3_SECRET_KEY,
+                               S3_ENDPOINT=S3_ENDPOINT,
+                               S3_REGION=S3_REGION)
     
     # 1. TÉLÉCHARGEMENT
     if args.all or args.download:
@@ -229,7 +242,6 @@ def main():
                  S3_SECRET_KEY=S3_SECRET_KEY,
                  S3_ENDPOINT=S3_ENDPOINT,
                  S3_REGION=S3_REGION)
-        
         
     print("\n✨ Pipeline terminé avec succès!")
 

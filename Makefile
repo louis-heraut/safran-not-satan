@@ -1,4 +1,4 @@
-.PHONY: help install install-prod install-service uninstall-service update run-all run-as-service run-download run-decompress run-split run-convert run-merge run-upload run-ui run-clean service-stop service-restart service-status service-logs service-logs-last-run data-hard-clean data-hard-clean-all data-stats
+.PHONY: help install install-prod install-service uninstall-service update run-all run-as-service run-policy run-download run-decompress run-split run-convert run-merge run-upload run-ui run-clean service-stop service-restart service-status service-logs service-logs-last-run data-hard-clean data-hard-clean-all data-stats
 
 # Variables
 PYTHON := python3
@@ -61,6 +61,10 @@ update: ## Met à jour le projet depuis git
 run-all: ## Exécute le pipeline complet (dev, avec ton user)
 	@echo "$(GREEN)Exécution du pipeline complet...$(NC)"
 	$(PYTHON_VENV) main.py --all --overwrite
+
+run-policy: ## Update la policy du bucket S3
+	@echo "$(GREEN)Changement de la policy du bucket S3...$(NC)"
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --policy
 
 run-download: ## Télécharge les nouvelles données uniquement
 	@echo "$(GREEN)Téléchargement des données...$(NC)"

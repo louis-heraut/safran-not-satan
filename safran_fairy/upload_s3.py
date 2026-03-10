@@ -9,6 +9,31 @@ import boto3
 from .tools import parse_filename
 
 
+def apply_s3_bucket_policy(S3_BUCKET: str,
+                           S3_BUCKET_POLICY: str = "policy.json",
+                           S3_ACCESS_KEY: str = os.getenv("S3_ACCESS_KEY"),
+                           S3_SECRET_KEY: str = os.getenv("S3_SECRET_KEY"),
+                           S3_ENDPOINT: str = os.getenv("S3_ENDPOINT"),
+                           S3_REGION: str = os.getenv("S3_REGION", "eu-west-1")):
+    """
+    Applique une bucket policy depuis un fichier JSON local.
+    """
+    s3 = boto3.client('s3',
+                      aws_access_key_id=S3_ACCESS_KEY,
+                      aws_secret_access_key=S3_SECRET_KEY,
+                      endpoint_url=S3_ENDPOINT,
+                      region_name=S3_REGION)
+
+    with open(S3_BUCKET_POLICY, 'r') as f:
+        policy = f.read()
+
+    try:
+        s3.put_bucket_policy(Bucket=S3_BUCKET, Policy=policy)
+        print(f"✅ Policy appliquée sur {S3_BUCKET}")
+    except Exception as e:
+        print(f"❌ Erreur : {str(e)}")
+
+
 def get_content_type(filename: str) -> str:
     ext = Path(filename).suffix.lower()
     return {

@@ -16,5 +16,6 @@
     "RDG_DATASET_DOI": "doi:10.57745/BAZ12C",
     "S3_ENDPOINT": "https://s3-data.meso.umontpellier.fr",
     "S3_BUCKET": "safran-fairy-data",
+    "S3_BUCKET_POLICY": "policy.json",
     "S3_PREFIX": ""
 } 

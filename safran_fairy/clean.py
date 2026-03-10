@@ -6,6 +6,8 @@ from datetime import datetime
 from art import tprint
 import boto3
 
+from .tools import parse_filename
+
 
 def clean_local(directory,
                 extensions=['.csv', '.csv.gz', '.parquet', '.nc'],
