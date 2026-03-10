@@ -5,7 +5,7 @@ import xarray as xr
 from art import tprint
 from datetime import datetime, timedelta
 
-from .clean import clean
+from .clean import clean_local
 
 
 def get_historical_files(files):
@@ -199,11 +199,6 @@ def merge(CONVERT_DIR, OUTPUT_DIR, converted_files=None):
     merged_latest_files = merge_latest(CONVERT_DIR, OUTPUT_DIR,
                                        converted_files)
     merged_files = merged_historical_files + merged_previous_files + merged_latest_files 
-
-    clean(OUTPUT_DIR,
-          patterns={'historical': r'historical-(\d{8})-(\d{8})',
-                    'latest': r'latest-(\d{8})-(\d{8})',
-                    'previous': r'previous-(\d{8})-(\d{8})'})
     
     print(f"\nRÉSUMÉ")
     print(f"   - {len(merged_files)} fichier(s) mergés")

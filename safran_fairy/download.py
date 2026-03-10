@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from art import tprint
 
-from .clean import clean
+from .clean import clean_local
 
 
 def load_state(STATE_FILE):
@@ -162,8 +162,6 @@ def download(STATE_FILE, DOWNLOAD_DIR, METEO_BASE_URL, METEO_DATASET_ID):
             downloaded_files.append(Path(DOWNLOAD_DIR) / result['filename'])
         else:
             failed += 1
-
-    clean(DOWNLOAD_DIR)
             
     print("\nRÉSUMÉ")
     print(f"   - ✅ Réussis: {success}")

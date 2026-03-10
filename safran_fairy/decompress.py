@@ -5,7 +5,7 @@ import requests
 from pathlib import Path
 from art import tprint
 
-from .clean import clean
+from .clean import clean_local
 
 
 def decompress_file(gz_file, RAW_DIR):
@@ -50,8 +50,6 @@ def decompress(DOWNLOAD_DIR, RAW_DIR, downloaded_files=None):
         print(f"\n[{i}/{len(downloaded_files)}]")
         output_file = decompress_file(file, RAW_DIR)
         decompressed_files.append(output_file)
-
-    clean(RAW_DIR)
         
     print("\nRÉSUMÉ")
     print(f"   - {len(decompressed_files)} fichier(s) décompressés")

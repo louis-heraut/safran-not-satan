@@ -4,7 +4,7 @@ import pandas as pd
 from art import tprint
 from dotenv import load_dotenv
 
-from .clean import clean
+from .clean import clean_local
 
 
 load_dotenv()
@@ -113,8 +113,6 @@ def split(RAW_DIR, SPLIT_DIR, decompressed_files=None):
         print(f"\n[{i}/{len(decompressed_files)}]")
         output_files = split_file(file, SPLIT_DIR)
         splited_files.append(output_files)
-
-    clean(SPLIT_DIR)
         
     print("\nRÉSUMÉ")
     print(f"   - {len(splited_files)} fichier(s) découpé(s)")

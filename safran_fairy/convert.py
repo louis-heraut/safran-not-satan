@@ -4,7 +4,7 @@ from pathlib import Path
 import xarray as xr
 from art import tprint
 
-from .clean import clean
+from .clean import clean_local
 
 
 def create_netcdf(file, CONVERT_DIR, METADATA_VARIABLES_FILE):
@@ -136,8 +136,6 @@ def convert(SPLIT_DIR, CONVERT_DIR, METADATA_VARIABLES_FILE,
         output_file = create_netcdf(file, CONVERT_DIR,
                                     METADATA_VARIABLES_FILE)       
         converted_files.append(output_file)
-
-    clean(CONVERT_DIR)
         
     print("\nRÉSUMÉ")
     print(f"   - {len(converted_files)} fichier(s) converti(s)")

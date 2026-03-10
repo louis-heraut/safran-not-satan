@@ -74,7 +74,7 @@ if MODE == "dev":
         pass
 
 
-from safran_fairy import download, decompress, split, convert, merge, upload_s3, clean_local, clean_s3, generate_stac_catalog
+from safran_fairy import download, decompress, split, convert, merge, upload_s3, generate_stac_catalog, clean_local, clean_s3
 
 
 def main():
@@ -110,8 +110,8 @@ def main():
     args = parser.parse_args()
     
     if not any([args.all, args.download, args.decompress, args.split,
-                args.convert, args.merge, args.upload, args.clean,
-                args.ui]):
+                args.convert, args.merge, args.upload, args.ui,
+                args.clean]):
         args.all = True
     
     print_welcome(WELCOME_FILE)
@@ -127,6 +127,7 @@ def main():
     if args.all or args.download:
         downloaded_files =  download(STATE_FILE, DOWNLOAD_DIR,
                                      METEO_BASE_URL, METEO_DATASET_ID)
+        clean_local(DOWNLOAD_DIR)
         if not downloaded_files:
             return
 
@@ -134,20 +135,27 @@ def main():
     if args.all or args.process or args.decompress:
         decompressed_files = decompress(DOWNLOAD_DIR, RAW_DIR,
                                         downloaded_files)
+        clean_local(RAW_DIR)
 
     # 3. SPLIT
     if args.all or args.process or args.split:
         splited_files = split(RAW_DIR, SPLIT_DIR, decompressed_files)
-
+        clean_local(SPLIT_DIR)
+            
     # 4. CONVERSION
     if args.all or args.process or args.convert:
         converted_files = convert(SPLIT_DIR, CONVERT_DIR,
                                   METADATA_VARIABLES_FILE, splited_files)
+        clean_local(CONVERT_DIR)
 
     # 5. MERGE
     if args.all or args.process or args.merge:
         merged_files = merge(CONVERT_DIR, OUTPUT_DIR, converted_files)
-
+        clean_local(OUTPUT_DIR,
+                    patterns={'historical': r'historical-(\d{8})-(\d{8})',
+                              'latest': r'latest-(\d{8})-(\d{8})',
+                              'previous': r'previous-(\d{8})-(\d{8})'})
+    
     # 6. UPLOAD
     if args.all or args.upload:
         overwrite = args.overwrite
@@ -161,32 +169,16 @@ def main():
                                  S3_SECRET_KEY=S3_SECRET_KEY,
                                  S3_ENDPOINT=S3_ENDPOINT,
                                  S3_REGION=S3_REGION)
-        if not_uploaded:
-            sys.exit(1)
-            
-        
-    # 7. NETTOYAGE
-    if args.clean:
-        # Nettoyage local
-        clean_local(directory=DOWNLOAD_DIR)
-        clean_local(directory=RAW_DIR)
-        clean_local(directory=SPLIT_DIR)
-        clean_local(directory=CONVERT_DIR)
-        clean_local(directory=OUTPUT_DIR,
-                    patterns={'historical': r'historical-(\d{8})-(\d{8})',
-                              'latest': r'latest-(\d{8})-(\d{8})',
-                              'previous': r'previous-(\d{8})-(\d{8})'})
-        
-        # Nettoyage S3
         clean_s3(S3_BUCKET=S3_BUCKET,
                  S3_PREFIX=S3_PREFIX, 
                  S3_ACCESS_KEY=S3_ACCESS_KEY,
                  S3_SECRET_KEY=S3_SECRET_KEY,
                  S3_ENDPOINT=S3_ENDPOINT,
                  S3_REGION=S3_REGION)
-        
+        if not_uploaded:
+            sys.exit(1)
 
-    # 8. UPDATE DATAVERSE
+    # 7. UPDATE UI
     if args.all or args.ui:
         # generate_index(OUTPUT_DIR=OUTPUT_DIR,
         #                S3_BUCKET=S3_BUCKET,
@@ -217,6 +209,27 @@ def main():
                   file_paths=[STAC_CATALOG_PATH,
                               STAC_COLLECTION_PATH],
                   overwrite=True)
+
+        
+    # 8. NETTOYAGE
+    if args.clean:
+        # Nettoyage local
+        clean_local(directory=DOWNLOAD_DIR)
+        clean_local(directory=RAW_DIR)
+        clean_local(directory=SPLIT_DIR)
+        clean_local(directory=CONVERT_DIR)
+        clean_local(directory=OUTPUT_DIR,
+                    patterns={'historical': r'historical-(\d{8})-(\d{8})',
+                              'latest': r'latest-(\d{8})-(\d{8})',
+                              'previous': r'previous-(\d{8})-(\d{8})'})
+        # Nettoyage S3
+        clean_s3(S3_BUCKET=S3_BUCKET,
+                 S3_PREFIX=S3_PREFIX, 
+                 S3_ACCESS_KEY=S3_ACCESS_KEY,
+                 S3_SECRET_KEY=S3_SECRET_KEY,
+                 S3_ENDPOINT=S3_ENDPOINT,
+                 S3_REGION=S3_REGION)
+        
         
     print("\n✨ Pipeline terminé avec succès!")
 
