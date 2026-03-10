@@ -36,7 +36,10 @@ RESOURCES_DIR = Path("resources")
 WELCOME_FILE = RESOURCES_DIR / config['WELCOME_FILE']
 METADATA_VARIABLES_FILE = RESOURCES_DIR / config['METADATA_VARIABLES_FILE']
 STATE_FILE = config['STATE_FILE']
+
 INDEX_PATH = config['INDEX_PATH']
+STAC_CATALOG_PATH = config['STAC_CATALOG_PATH']
+STAC_COLLECTION_PATH = config['STAC_COLLECTION_PATH']
 
 DOWNLOAD_DIR = config['DOWNLOAD_DIR']
 RAW_DIR = config['RAW_DIR']
@@ -66,11 +69,12 @@ if MODE == "dev":
         get_ipython().run_line_magic('load_ext', 'autoreload')
         get_ipython().run_line_magic('autoreload', '2')
         print("🔧 Mode développement activé")
+        overwrite = True
     except:
         pass
 
 
-from safran_fairy import download, decompress, split, convert, merge, upload_s3, update_dataverse_index, publish, clean
+from safran_fairy import download, decompress, split, convert, merge, upload_s3, clean_local, clean_s3, generate_stac_catalog
 
 
 def main():
@@ -96,10 +100,8 @@ def main():
                         help='Upload sur le S3')
     parser.add_argument('--clean', action='store_true',
                         help='Nettoie les anciennes versions')
-    parser.add_argument('--index', action='store_true',
+    parser.add_argument('--ui', action='store_true',
                         help="Update le fichier index de Dataverse")
-    parser.add_argument('--publish', action='store_true',
-                        help='Publie sur Dataverse')
 
     # Options
     parser.add_argument('--overwrite',   action='store_true', help='Écrase les fichiers existants sur Dataverse')
@@ -109,7 +111,7 @@ def main():
     
     if not any([args.all, args.download, args.decompress, args.split,
                 args.convert, args.merge, args.upload, args.clean,
-                args.index, args.publish]):
+                args.ui]):
         args.all = True
     
     print_welcome(WELCOME_FILE)
@@ -149,11 +151,11 @@ def main():
     # 6. UPLOAD
     if args.all or args.upload:
         overwrite = args.overwrite
-        overwrite = True
         not_uploaded = upload_s3(S3_BUCKET=S3_BUCKET,
                                  S3_PREFIX=S3_PREFIX,
                                  OUTPUT_DIR=OUTPUT_DIR,
                                  file_paths=merged_files,
+                                 organize_by_version=True,
                                  overwrite=overwrite,
                                  S3_ACCESS_KEY=S3_ACCESS_KEY,
                                  S3_SECRET_KEY=S3_SECRET_KEY,
@@ -166,45 +168,55 @@ def main():
     # 7. NETTOYAGE
     if args.clean:
         # Nettoyage local
-        clean(directory=DOWNLOAD_DIR)
-        clean(directory=RAW_DIR)
-        clean(directory=SPLIT_DIR)
-        clean(directory=CONVERT_DIR)
-        clean(directory=OUTPUT_DIR,
-              patterns={'historical': r'historical-(\d{8})-(\d{8})',
-                        'latest': r'latest-(\d{8})-(\d{8})',
-                        'previous': r'previous-(\d{8})-(\d{8})'})
+        clean_local(directory=DOWNLOAD_DIR)
+        clean_local(directory=RAW_DIR)
+        clean_local(directory=SPLIT_DIR)
+        clean_local(directory=CONVERT_DIR)
+        clean_local(directory=OUTPUT_DIR,
+                    patterns={'historical': r'historical-(\d{8})-(\d{8})',
+                              'latest': r'latest-(\d{8})-(\d{8})',
+                              'previous': r'previous-(\d{8})-(\d{8})'})
         
         # Nettoyage S3
-        clean(S3_BUCKET=S3_BUCKET,
-              S3_PREFIX=S3_PREFIX, 
-              patterns={'historical': r'historical-(\d{8})-(\d{8})',
-                        'latest': r'latest-(\d{8})-(\d{8})',
-                        'previous': r'previous-(\d{8})-(\d{8})'},
-              S3_ACCESS_KEY=S3_ACCESS_KEY,
-              S3_SECRET_KEY=S3_SECRET_KEY,
-              S3_ENDPOINT=S3_ENDPOINT,
-              S3_REGION=S3_REGION)
+        clean_s3(S3_BUCKET=S3_BUCKET,
+                 S3_PREFIX=S3_PREFIX, 
+                 S3_ACCESS_KEY=S3_ACCESS_KEY,
+                 S3_SECRET_KEY=S3_SECRET_KEY,
+                 S3_ENDPOINT=S3_ENDPOINT,
+                 S3_REGION=S3_REGION)
         
 
     # 8. UPDATE DATAVERSE
-    if args.all or args.index:
-        update_dataverse_index(OUTPUT_DIR=OUTPUT_DIR,
-                               S3_BUCKET=S3_BUCKET,
-                               S3_PREFIX=S3_PREFIX,
-                               METADATA_VARIABLES_FILE=METADATA_VARIABLES_FILE,
-                               INDEX_PATH=INDEX_PATH,
-                               S3_ENDPOINT=S3_ENDPOINT,
-                               S3_REGION=S3_REGION,
-                               RDG_DATASET_DOI=RDG_DATASET_DOI,
-                               RDG_BASE_URL=RDG_BASE_URL,
-                               RDG_API_TOKEN=RDG_API_TOKEN)
-        
-    # 9. PUBLISH
-    if args.all or args.publish:
-        publish(dataset_DOI=RDG_DATASET_DOI,
-                RDG_BASE_URL=RDG_BASE_URL,
-                RDG_API_TOKEN=RDG_API_TOKEN)
+    if args.all or args.ui:
+        # generate_index(OUTPUT_DIR=OUTPUT_DIR,
+        #                S3_BUCKET=S3_BUCKET,
+        #                S3_PREFIX=S3_PREFIX,
+        #                METADATA_VARIABLES_FILE=METADATA_VARIABLES_FILE,
+        #                INDEX_PATH=INDEX_PATH,
+        #                S3_ENDPOINT=S3_ENDPOINT,
+        #                S3_REGION=S3_REGION)
+        # upload_dataverse_index(INDEX_PATH=INDEX_PATH,
+        #                        RDG_DATASET_DOI=RDG_DATASET_DOI,
+        #                        RDG_BASE_URL=RDG_BASE_URL,
+        #                        RDG_API_TOKEN=RDG_API_TOKEN)
+
+
+        generate_stac_catalog(S3_BUCKETS3_BUCKET,
+                              S3_PREFIX=S3_PREFIX,
+                              METADATA_VARIABLES_FILE=METADATA_VARIABLES_FILE,
+                              STAC_CATALOG_PATH=STAC_CATALOG_PATH,
+                              STAC_COLLECTION_PATH=STAC_COLLECTION_PATH,
+                              S3_ACCESS_KEY=S3_ACCESS_KEY,
+                              S3_SECRET_KEY=S3_SECRET_KEY,
+                              S3_ENDPOINT=S3_ENDPOINT,
+                              S3_REGION=S3_REGION):
+
+        upload_s3(S3_BUCKET=S3_BUCKET,
+                  S3_PREFIX=S3_PREFIX,
+                  OUTPUT_DIR=OUTPUT_DIR,
+                  file_paths=[STAC_CATALOG_PATH,
+                              STAC_COLLECTION_PATH],
+                  overwrite=True)
         
     print("\n✨ Pipeline terminé avec succès!")
 

@@ -6,14 +6,26 @@ from pathlib import Path
 from art import tprint
 import boto3
 
+from .tools import parse_filename
+
+
+def get_content_type(filename: str) -> str:
+    ext = Path(filename).suffix.lower()
+    return {
+        '.nc':   'application/x-netcdf',
+        '.html': 'text/html; charset=utf-8',
+        '.json': 'application/json; charset=utf-8',
+    }.get(ext, 'application/octet-stream')
+
 
 def upload_s3(S3_BUCKET: str,
               S3_PREFIX: str,
               OUTPUT_DIR: str,
               file_paths: list = None,
               overwrite: bool = False,
-              S3_ACCESS_KEY: str = os.getenv("S3_ACCESS_KEY_ID"),
-              S3_SECRET_KEY: str = os.getenv("AWS_SECRET_ACCESS_KEY"),
+              organize_by_version: bool = False,
+              S3_ACCESS_KEY: str = os.getenv("S3_ACCESS_KEY"),
+              S3_SECRET_KEY: str = os.getenv("S3_SECRET_KEY"),
               S3_ENDPOINT: str = os.getenv("S3_ENDPOINT"),
               S3_REGION: str = os.getenv("S3_REGION", "eu-west-1")):
 
@@ -29,7 +41,7 @@ def upload_s3(S3_BUCKET: str,
     if file_paths is None:
         file_paths = list(Path(OUTPUT_DIR).glob("*.nc"))
     if not file_paths:
-        print("\n⚠️  Aucun fichier à uploader")
+        print("\n⚠️  Aucun fichier de données à uploader")
         return []
 
     print("\nUPLOAD S3")
@@ -49,7 +61,18 @@ def upload_s3(S3_BUCKET: str,
 
     for i, file_path in enumerate(file_paths):
         path_obj = Path(file_path)
-        s3_key = f"{S3_PREFIX}/{path_obj.name}".lstrip("/")
+
+        if organize_by_version:
+            parsed = parse_filename(path_obj.name)
+            if parsed:
+                version = parsed['version']
+                prefix = f"{S3_PREFIX}/{version}".lstrip("/")
+            else:
+                prefix = S3_PREFIX
+        else:
+            prefix = S3_PREFIX
+
+        s3_key = f"{prefix}/{path_obj.name}".lstrip("/")
 
         print(f"\n📤 [{i+1}/{len(file_paths)}] {path_obj.name}")
         print(f"   → Clé S3: {s3_key}")
@@ -67,7 +90,7 @@ def upload_s3(S3_BUCKET: str,
                 str(file_path),
                 S3_BUCKET,
                 s3_key,
-                ExtraArgs={'ContentType': 'application/x-netcdf'}
+                ExtraArgs={'ContentType': get_content_type(path_obj.name)}
             )
 
             elapsed = time.time() - start_time

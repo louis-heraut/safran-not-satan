@@ -1,4 +1,4 @@
-.PHONY: help install install-prod install-service uninstall-service update run-all run-as-service run-download run-decompress run-split run-convert run-merge run-upload run-clean run-index run-publish service-stop service-restart service-status service-logs service-logs-last-run data-hard-clean data-hard-clean-all data-stats
+.PHONY: help install install-prod install-service uninstall-service update run-all run-as-service run-download run-decompress run-split run-convert run-merge run-upload run-clean run-ui service-stop service-restart service-status service-logs service-logs-last-run data-hard-clean data-hard-clean-all data-stats
 
 # Variables
 PYTHON := python3
@@ -90,13 +90,9 @@ run-clean: ## Nettoie les anciennes versions (local + S3)
 	@echo "$(GREEN)Nettoyage des anciennes versions...$(NC)"
 	sudo -u safran-fairy $(PYTHON_VENV) main.py --clean
 
-run-index: ## Génère et upload l'index HTML sur Dataverse
-	@echo "$(GREEN)Mise à jour de l'index Dataverse...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --index
-
-run-publish: ## Publie le dataset sur Dataverse
-	@echo "$(GREEN)Publication sur Dataverse...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --publish
+run-ui: ## Génère et upload l'index HTML sur Dataverse
+	@echo "$(GREEN)Mise à jour de l'interface...$(NC)"
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --ui
 
 run-as-service: ## Exécute comme le ferait le service systemd (nécessite sudo)
 	@echo "$(GREEN)Exécution du pipeline complet par le service...$(NC)"

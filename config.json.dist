@@ -2,7 +2,9 @@
     "WELCOME_FILE": "welcome.txt",
     "METADATA_VARIABLES_FILE": "safran-variables_2026-02-19.csv",
     "STATE_FILE": "download_state.json",
-    "INDEX_PATH": "data-access.html",
+    "INDEX_PATH": "index.html",
+    "STAC_CATALOG_PATH": "catalog.json",
+    "STAC_COLLECTION_PATH": "collection.json",
     "DOWNLOAD_DIR": "00_data-download",
     "RAW_DIR": "01_data-raw",
     "SPLIT_DIR": "02_data-split",
@@ -12,7 +14,7 @@
     "METEO_DATASET_ID": "6569b27598256cc583c917a7",
     "RDG_BASE_URL": "https://entrepot.recherche.data.gouv.fr",
     "RDG_DATASET_DOI": "doi:10.57745/BAZ12C",
-    "S3_ENDPOINT": "https://s3-tls.stockage.inra.fr",
+    "S3_ENDPOINT": "https://s3-data.meso.umontpellier.fr",
     "S3_BUCKET": "safran-fairy-data",
     "S3_PREFIX": ""
 } 
