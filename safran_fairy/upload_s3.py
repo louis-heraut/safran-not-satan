@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 from art import tprint
 import boto3
+import mimetypes
 
 from .tools import parse_filename
 
@@ -88,14 +89,10 @@ def list_s3_files(S3_BUCKET: str,
     print(f"\n📊 {len(files)} fichier(s) trouvé(s)")
     return files
 
-        
+
 def get_content_type(filename: str) -> str:
-    ext = Path(filename).suffix.lower()
-    return {
-        '.nc':   'application/x-netcdf',
-        '.html': 'text/html; charset=utf-8',
-        '.json': 'application/json; charset=utf-8',
-    }.get(ext, 'application/octet-stream')
+    content_type, _ = mimetypes.guess_type(filename)
+    return content_type or "application/octet-stream"
 
 
 def upload_s3(local_paths: list,

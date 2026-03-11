@@ -243,20 +243,20 @@ def generate_stac_catalog(CATALOG_DIR,
                     }
                 },
                 "links": [
-                    {"rel": "root",       "href": f"{base_url}/stac/catalog.json",    "type": "application/json"},
-                    {"rel": "collection", "href": f"{base_url}/stac/collection.json", "type": "application/json"},
-                    {"rel": "self",       "href": f"{base_url}/stac/items/{item_id}.json", "type": "application/json"}
+                    {"rel": "root",       "href": f"{base_url}/stac-data/catalog.json",    "type": "application/json"},
+                    {"rel": "collection", "href": f"{base_url}/stac-data/collection.json", "type": "application/json"},
+                    {"rel": "self",       "href": f"{base_url}/stac-data/items/{item_id}.json", "type": "application/json"}
                 ]
             }
 
             item_path = items_dir / f"{item_id}.json"
             with open(item_path, 'w', encoding='utf-8') as fp:
                 json.dump(item, fp, ensure_ascii=False, indent=2)
-            output_files.append(str(item_path))
+            output_files.append(item_path)
 
             item_links.append({
                 "rel":   "item",
-                "href":  f"{base_url}/stac/items/{item_id}.json",
+                "href":  f"{base_url}/stac-data/items/{item_id}.json",
                 "type":  "application/json",
                 "title": item_id
             })
@@ -274,8 +274,8 @@ def generate_stac_catalog(CATALOG_DIR,
             "temporal": {"interval": [["1958-08-01T00:00:00Z", None]]}
         },
         "links": [
-            {"rel": "root", "href": f"{base_url}/stac/catalog.json",    "type": "application/json"},
-            {"rel": "self", "href": f"{base_url}/stac/collection.json", "type": "application/json"},
+            {"rel": "root", "href": f"{base_url}/stac-data/catalog.json",    "type": "application/json"},
+            {"rel": "self", "href": f"{base_url}/stac-data/collection.json", "type": "application/json"},
             *item_links   # ← liens vers chaque item
         ]
     }
@@ -283,7 +283,7 @@ def generate_stac_catalog(CATALOG_DIR,
     collection_path = stac_dir / "collection.json"
     with open(collection_path, 'w', encoding='utf-8') as fp:
         json.dump(collection, fp, ensure_ascii=False, indent=2)
-    output_files.append(str(collection_path))
+    output_files.append(collection_path)
 
     # ── 3. Catalog racine ──────────────────────────────────────────────
     catalog = {
@@ -293,8 +293,8 @@ def generate_stac_catalog(CATALOG_DIR,
         "title":        "Catalogue SAFRAN-Fairy",
         "description":  "Catalogue des données SIM2 distribuées par SAFRAN-Fairy.",
         "links": [
-            {"rel": "self",  "href": f"{base_url}/stac/catalog.json",    "type": "application/json"},
-            {"rel": "child", "href": f"{base_url}/stac/collection.json", "type": "application/json",
+            {"rel": "self",  "href": f"{base_url}/stac-data/catalog.json",    "type": "application/json"},
+            {"rel": "child", "href": f"{base_url}/stac-data/collection.json", "type": "application/json",
              "title": "SIM2 SAFRAN-ISBA-MODCOU"}
         ]
     }
@@ -302,7 +302,7 @@ def generate_stac_catalog(CATALOG_DIR,
     catalog_path = stac_dir / "catalog.json"
     with open(catalog_path, 'w', encoding='utf-8') as fp:
         json.dump(catalog, fp, ensure_ascii=False, indent=2)
-    output_files.append(str(catalog_path))
+    output_files.append(catalog_path)
 
     print(f"✅ STAC généré : {len(output_files) - 2} items, {len(grouped)} variables")
     print(f"   → {stac_dir}/catalog.json")

@@ -87,6 +87,8 @@ def main():
                         help="Update le fichier policy de S3")
     parser.add_argument('--cors', action='store_true',
                         help="Update le fichier CORS de S3")
+    parser.add_argument('--browser', action='store_true',
+                    help='Déploie STAC Browser sur S3')
     parser.add_argument('--download', action='store_true',
                         help='Télécharge les fichiers')
     parser.add_argument('--decompress', action='store_true',
@@ -110,7 +112,7 @@ def main():
 
     args = parser.parse_args()
     
-    if not any([args.all, args.policy, args.cors,
+    if not any([args.all, args.policy, args.cors, args.browser,
                 args.download, args.decompress, args.split,
                 args.convert, args.merge, args.upload, args.ui,
                 args.clean, args.overwrite]):
@@ -139,7 +141,7 @@ def main():
                              S3_ACCESS_KEY=S3_ACCESS_KEY,
                              S3_SECRET_KEY=S3_SECRET_KEY,
                              S3_ENDPOINT=S3_ENDPOINT,
-                             S3_REGION=S3_REGION)    
+                             S3_REGION=S3_REGION)
     
     # 1. TÉLÉCHARGEMENT
     if args.all or args.download:
@@ -218,42 +220,37 @@ def main():
             S3_BUCKET=S3_BUCKET,
             S3_PREFIX=S3_PREFIX,
             METADATA_VARIABLES_FILE=METADATA_VARIABLES_FILE,
-            STAC_DIR=STAC_DIR,
             S3_ACCESS_KEY=S3_ACCESS_KEY,
             S3_SECRET_KEY=S3_SECRET_KEY,
             S3_ENDPOINT=S3_ENDPOINT,
             S3_REGION=S3_REGION)
 
-
-        s3_paths = stac_files.relative_to(CATALOG_DIR)
-        upload_s3(file_paths=stac_files,
+        s3_paths = [p.relative_to(CATALOG_DIR) for p in stac_files]
+        
+        upload_s3(local_paths=stac_files,
                   S3_BUCKET=S3_BUCKET,
                   s3_paths=s3_paths,
-                  S3_PREFIX=S3_PREFIX,
-                  S3_ACCESS_KEY=S3_ACCESS_KEY,
-                  S3_SECRET_KEY=S3_SECRET_KEY,
-                  S3_ENDPOINT=S3_ENDPOINT,
-                  S3_REGION=S3_REGION)
-
-         
-
-        upload_s3(S3_BUCKET=S3_BUCKET,
-                  S3_PREFIX="stac-data",
-                  OUTPUT_DIR=OUTPUT_DIR,
-                  file_paths=stac_files,
-                  overwrite=True,
-                  S3_ACCESS_KEY=S3_ACCESS_KEY,
-                  S3_SECRET_KEY=S3_SECRET_KEY,
-                  S3_ENDPOINT=S3_ENDPOINT,
-                  S3_REGION=S3_REGION)
-
-        upload_s3(S3_BUCKET=S3_BUCKET,
                   S3_PREFIX="",
-                  OUTPUT_DIR="stac-data",
-                  file_paths=stac_files,
-                  overwrite=True,
-                  relative_to=".")
-        
+                  S3_ACCESS_KEY=S3_ACCESS_KEY,
+                  S3_SECRET_KEY=S3_SECRET_KEY,
+                  S3_ENDPOINT=S3_ENDPOINT,
+                  S3_REGION=S3_REGION)
+
+    if args.browser:
+        dist_path = Path(CATALOG_DIR) / "stac-browser" / "dist"
+        local_paths = [str(f) for f in dist_path.rglob("*") if f.is_file()]
+        s3_paths = [str(Path(f).relative_to(dist_path)) for f in local_paths]
+
+        print(f"🚀 Deploy STAC Browser — {len(local_paths)} fichiers")
+        upload_s3(local_paths=local_paths,
+                  S3_BUCKET=S3_BUCKET,
+                  s3_paths=s3_paths,
+                  S3_PREFIX="",
+                  S3_ACCESS_KEY=S3_ACCESS_KEY,
+                  S3_SECRET_KEY=S3_SECRET_KEY,
+                  S3_ENDPOINT=S3_ENDPOINT,
+                  S3_REGION=S3_REGION)
+    
     # 8. NETTOYAGE
     if args.clean:
         # Nettoyage local
@@ -311,7 +308,7 @@ if __name__ == "__main__":
 #                           S3_SECRET_KEY=S3_SECRET_KEY,
 #                           S3_ENDPOINT=S3_ENDPOINT,
 #                           S3_REGION=S3_REGION)
-
+# stac_keys = ["index.html", "mitm.html", "runtime-config.js"]
 # delete_s3_files(stac_keys, S3_BUCKET,
 #                 S3_ACCESS_KEY=S3_ACCESS_KEY,
 #                 S3_SECRET_KEY=S3_SECRET_KEY,

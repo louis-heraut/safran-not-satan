@@ -1,5 +1,9 @@
 .PHONY: help install install-prod install-service uninstall-service update run-all run-as-service run-policy run-cors run-download run-decompress run-split run-convert run-merge run-upload run-ui run-clean service-stop service-restart service-status service-logs service-logs-last-run data-hard-clean data-hard-clean-all data-stats
 
+# Variables projet
+STAC_BROWSER_DIR = 05_catalog/stac-browser
+STAC_CATALOG_URL = https://s3-data.meso.umontpellier.fr/safran-fairy-data/stac-data/catalog.json
+
 # Variables
 PYTHON := python3
 VENV := .python_env
@@ -174,18 +178,33 @@ data-stats: ## Affiche des statistiques sur les données
 
 
 
-docker_start:
-	docker compose up -d
 
-docker_status:
-	docker compose ps
+browser-install:
+	git clone https://github.com/radiantearth/stac-browser $(STAC_BROWSER_DIR) || true
+	cd $(STAC_BROWSER_DIR) && npm install
 
-docker_log_app:
-	docker compose logs
+browser-build:
+	cd $(STAC_BROWSER_DIR) && \
+	STAC_APP_NAME="SAFRAN-Fairy" \
+	STAC_CATALOG_URL=$(STAC_CATALOG_URL) \
+	npm run build --base=/safran-fairy-data/
 
-docker_stop:
-	docker compose stop
+browser-deploy:
+	python main.py --browser
 
-docker_delete:
-	docker compose down -v
+
+# docker_start:
+# 	docker compose up -d
+
+# docker_status:
+# 	docker compose ps
+
+# docker_log_app:
+# 	docker compose logs
+
+# docker_stop:
+# 	docker compose stop
+
+# docker_delete:
+# 	docker compose down -v
 
