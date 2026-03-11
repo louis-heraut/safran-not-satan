@@ -2,12 +2,20 @@ import os
 import requests
 import json
 import time
+import math
 import pandas as pd
 from pathlib import Path
 from art import tprint
+import boto3
 from datetime import datetime, timezone
 
 from .tools import parse_filename
+
+
+def safe_str(val):
+    if val is None or (isinstance(val, float) and math.isnan(val)):
+        return ""
+    return str(val)
 
 
 def generate_index(OUTPUT_DIR: str,
@@ -115,11 +123,10 @@ def generate_index(OUTPUT_DIR: str,
     return INDEX_PATH
 
 
-def generate_stac_catalog(S3_BUCKET: str,
+def generate_stac_catalog(CATALOG_DIR,
+                          S3_BUCKET: str,
                           S3_PREFIX: str = "",
                           METADATA_VARIABLES_FILE: str = None,
-                          STAC_CATALOG_PATH: str = "catalog.json",
-                          STAC_COLLECTION_PATH: str = "collection.json",
                           S3_ACCESS_KEY: str = os.getenv("S3_ACCESS_KEY"),
                           S3_SECRET_KEY: str = os.getenv("S3_SECRET_KEY"),
                           S3_ENDPOINT: str = os.getenv("S3_ENDPOINT"),
@@ -127,7 +134,8 @@ def generate_stac_catalog(S3_BUCKET: str,
     """
     Génère un catalogue STAC minimal valide pour SIM2.
     Liste les fichiers directement depuis S3.
-    Produit : catalog.json + collection.json
+    Produit : stac-data/catalog.json + collection.json + items/*.json
+    Retourne la liste des fichiers créés pour upload.
     """
 
     # Base URL
@@ -167,17 +175,16 @@ def generate_stac_catalog(S3_BUCKET: str,
         parsed = parse_filename(filename)
         if not parsed:
             continue
-        variable  = parsed['variable']
-        version   = parsed['version']
-        date_fin  = int(parsed['date_fin'])
-        # Garde uniquement le fichier le plus récent par (variable, version)
+        variable = parsed['variable']
+        version  = parsed['version']
+        date_fin = int(parsed['date_fin'])
         existing = grouped[variable].get(version)
         if existing is None or date_fin > existing['date_fin_int']:
             grouped[variable][version] = {
-                'filename':    filename,
-                'url':         f"{base_url}/{key}",
-                'date_debut':  parsed['date_debut'],
-                'date_fin':    parsed['date_fin'],
+                'filename':     filename,
+                'url':          f"{base_url}/{key}",
+                'date_debut':   parsed['date_debut'],
+                'date_fin':     parsed['date_fin'],
                 'date_fin_int': date_fin
             }
 
@@ -185,18 +192,29 @@ def generate_stac_catalog(S3_BUCKET: str,
         print("⚠️  Aucun fichier reconnu dans le bucket")
         return []
 
+    # Créer l'arborescence locale
+    catalog_dir = Path(CATALOG_DIR)
+    stac_dir = catalog_dir / "stac-data"
+    items_dir = stac_dir / "items"
+    catalog_dir.mkdir(exist_ok=True)
+    stac_dir.mkdir(exist_ok=True)
+    items_dir.mkdir(exist_ok=True)
+
     # ── 1. Générer les items STAC ──────────────────────────────────────
     def fmt_date(d):
         return f"{d[:4]}-{d[4:6]}-{d[6:8]}T00:00:00Z"
 
-    items = []
+    output_files = []
+    item_links   = []
+
     for variable in sorted(grouped.keys()):
         meta = var_meta.get(variable, {})
         for version, f in sorted(grouped[variable].items()):
+            item_id = f"{variable}_SIM2_{version}"
             item = {
                 "type": "Feature",
                 "stac_version": "1.0.0",
-                "id": f"{variable}_SIM2_{version}",
+                "id": item_id,
                 "geometry": {
                     "type": "Polygon",
                     "coordinates": [[
@@ -207,14 +225,14 @@ def generate_stac_catalog(S3_BUCKET: str,
                 },
                 "bbox": [-5.2, 41.3, 9.7, 51.1],
                 "properties": {
-                    "datetime":        None,
-                    "start_datetime":  fmt_date(f['date_debut']),
-                    "end_datetime":    fmt_date(f['date_fin']),
-                    "variable":        variable,
-                    "version_type":    version,
-                    "description":     meta.get('description', ''),
-                    "unite":           meta.get('unite', ''),
-                    "periode_agregation": meta.get('periode_agregation', ''),
+                    "datetime":           None,
+                    "start_datetime":     fmt_date(f['date_debut']),
+                    "end_datetime":       fmt_date(f['date_fin']),
+                    "variable":           variable,
+                    "version_type":       version,
+                    "description":        safe_str(meta.get('description')),
+                    "unite":              safe_str(meta.get('unite')),
+                    "periode_agregation": safe_str(meta.get('periode_agregation')),
                 },
                 "assets": {
                     "data": {
@@ -224,9 +242,24 @@ def generate_stac_catalog(S3_BUCKET: str,
                         "roles": ["data"]
                     }
                 },
-                "links": []
+                "links": [
+                    {"rel": "root",       "href": f"{base_url}/stac/catalog.json",    "type": "application/json"},
+                    {"rel": "collection", "href": f"{base_url}/stac/collection.json", "type": "application/json"},
+                    {"rel": "self",       "href": f"{base_url}/stac/items/{item_id}.json", "type": "application/json"}
+                ]
             }
-            items.append(item)
+
+            item_path = items_dir / f"{item_id}.json"
+            with open(item_path, 'w', encoding='utf-8') as fp:
+                json.dump(item, fp, ensure_ascii=False, indent=2)
+            output_files.append(str(item_path))
+
+            item_links.append({
+                "rel":   "item",
+                "href":  f"{base_url}/stac/items/{item_id}.json",
+                "type":  "application/json",
+                "title": item_id
+            })
 
     # ── 2. Collection ──────────────────────────────────────────────────
     collection = {
@@ -241,11 +274,16 @@ def generate_stac_catalog(S3_BUCKET: str,
             "temporal": {"interval": [["1958-08-01T00:00:00Z", None]]}
         },
         "links": [
-            {"rel": "root", "href": f"{base_url}/catalog.json",    "type": "application/json"},
-            {"rel": "self", "href": f"{base_url}/collection.json",  "type": "application/json"}
-        ],
-        "features": items
+            {"rel": "root", "href": f"{base_url}/stac/catalog.json",    "type": "application/json"},
+            {"rel": "self", "href": f"{base_url}/stac/collection.json", "type": "application/json"},
+            *item_links   # ← liens vers chaque item
+        ]
     }
+
+    collection_path = stac_dir / "collection.json"
+    with open(collection_path, 'w', encoding='utf-8') as fp:
+        json.dump(collection, fp, ensure_ascii=False, indent=2)
+    output_files.append(str(collection_path))
 
     # ── 3. Catalog racine ──────────────────────────────────────────────
     catalog = {
@@ -255,19 +293,19 @@ def generate_stac_catalog(S3_BUCKET: str,
         "title":        "Catalogue SAFRAN-Fairy",
         "description":  "Catalogue des données SIM2 distribuées par SAFRAN-Fairy.",
         "links": [
-            {"rel": "self",  "href": f"{base_url}/catalog.json",   "type": "application/json"},
-            {"rel": "child", "href": f"{base_url}/collection.json", "type": "application/json",
+            {"rel": "self",  "href": f"{base_url}/stac/catalog.json",    "type": "application/json"},
+            {"rel": "child", "href": f"{base_url}/stac/collection.json", "type": "application/json",
              "title": "SIM2 SAFRAN-ISBA-MODCOU"}
         ]
     }
 
-    # ── 4. Écrire les fichiers ─────────────────────────────────────────
-    output_files = []
-    for filename, content in [(STAC_CATALOG_PATH, catalog),
-                              (STAC_COLLECTION_PATH, collection)]:
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump(content, f, ensure_ascii=False, indent=2)
-        output_files.append(filename)
+    catalog_path = stac_dir / "catalog.json"
+    with open(catalog_path, 'w', encoding='utf-8') as fp:
+        json.dump(catalog, fp, ensure_ascii=False, indent=2)
+    output_files.append(str(catalog_path))
 
-    print(f"✅ STAC généré : {len(items)} items, {len(grouped)} variables")
+    print(f"✅ STAC généré : {len(output_files) - 2} items, {len(grouped)} variables")
+    print(f"   → {stac_dir}/catalog.json")
+    print(f"   → {stac_dir}/collection.json")
+    print(f"   → {stac_dir}/items/ ({len(output_files) - 2} fichiers)")
     return output_files

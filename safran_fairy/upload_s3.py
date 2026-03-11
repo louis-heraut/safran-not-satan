@@ -8,15 +8,68 @@ import boto3
 
 from .tools import parse_filename
 
-
+    
 def apply_s3_bucket_policy(S3_BUCKET: str,
-                           S3_BUCKET_POLICY: str = "policy.json",
                            S3_ACCESS_KEY: str = os.getenv("S3_ACCESS_KEY"),
                            S3_SECRET_KEY: str = os.getenv("S3_SECRET_KEY"),
                            S3_ENDPOINT: str = os.getenv("S3_ENDPOINT"),
                            S3_REGION: str = os.getenv("S3_REGION", "eu-west-1")):
+    s3 = boto3.client('s3',
+                      aws_access_key_id=S3_ACCESS_KEY,
+                      aws_secret_access_key=S3_SECRET_KEY,
+                      endpoint_url=S3_ENDPOINT,
+                      region_name=S3_REGION)
+    policy = json.dumps({
+        "Version": "2012-10-17",
+        "Statement": [{
+            "Sid": "PublicRead",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "s3:GetObject",
+            "Resource": f"arn:aws:s3:::{S3_BUCKET}/*"
+        }]
+    })
+    try:
+        s3.put_bucket_policy(Bucket=S3_BUCKET, Policy=policy)
+        print(f"✅ Policy appliquée sur {S3_BUCKET}")
+    except Exception as e:
+        print(f"❌ Erreur : {str(e)}")
+
+        
+def apply_s3_bucket_cors(S3_BUCKET: str,
+                         S3_ACCESS_KEY: str = os.getenv("S3_ACCESS_KEY"),
+                         S3_SECRET_KEY: str = os.getenv("S3_SECRET_KEY"),
+                         S3_ENDPOINT: str = os.getenv("S3_ENDPOINT"),
+                         S3_REGION: str = os.getenv("S3_REGION", "eu-west-1")):
+    s3 = boto3.client('s3',
+                      aws_access_key_id=S3_ACCESS_KEY,
+                      aws_secret_access_key=S3_SECRET_KEY,
+                      endpoint_url=S3_ENDPOINT,
+                      region_name=S3_REGION)
+    cors = {
+        "CORSRules": [{
+            "AllowedOrigins": ["*"],
+            "AllowedMethods": ["GET"],
+            "AllowedHeaders": ["*"],
+            "MaxAgeSeconds": 3000
+        }]
+    }
+    try:
+        s3.put_bucket_cors(Bucket=S3_BUCKET, CORSConfiguration=cors)
+        print(f"✅ CORS appliqué sur {S3_BUCKET}")
+    except Exception as e:
+        print(f"❌ Erreur : {str(e)}")
+        
+        
+def list_s3_files(S3_BUCKET: str,
+                  S3_PREFIX: str = "",
+                  extension: str = None,
+                  S3_ACCESS_KEY: str = os.getenv("S3_ACCESS_KEY"),
+                  S3_SECRET_KEY: str = os.getenv("S3_SECRET_KEY"),
+                  S3_ENDPOINT: str = config["S3_ENDPOINT"],
+                  S3_REGION: str = config["S3_REGION"]):
     """
-    Applique une bucket policy depuis un fichier JSON local.
+    Liste les fichiers d'un bucket S3.
     """
     s3 = boto3.client('s3',
                       aws_access_key_id=S3_ACCESS_KEY,
@@ -24,16 +77,18 @@ def apply_s3_bucket_policy(S3_BUCKET: str,
                       endpoint_url=S3_ENDPOINT,
                       region_name=S3_REGION)
 
-    with open(S3_BUCKET_POLICY, 'r') as f:
-        policy = f.read()
+    paginator = s3.get_paginator('list_objects_v2')
+    files = []
+    for page in paginator.paginate(Bucket=S3_BUCKET, Prefix=S3_PREFIX):
+        for obj in page.get('Contents', []):
+            if extension is None or obj['Key'].endswith(extension):
+                files.append(obj['Key'])
+                print(obj['Key'])
 
-    try:
-        s3.put_bucket_policy(Bucket=S3_BUCKET, Policy=policy)
-        print(f"✅ Policy appliquée sur {S3_BUCKET}")
-    except Exception as e:
-        print(f"❌ Erreur : {str(e)}")
+    print(f"\n📊 {len(files)} fichier(s) trouvé(s)")
+    return files
 
-
+        
 def get_content_type(filename: str) -> str:
     ext = Path(filename).suffix.lower()
     return {
@@ -43,99 +98,147 @@ def get_content_type(filename: str) -> str:
     }.get(ext, 'application/octet-stream')
 
 
-def upload_s3(S3_BUCKET: str,
-              S3_PREFIX: str,
-              OUTPUT_DIR: str,
-              file_paths: list = None,
-              overwrite: bool = False,
-              organize_by_version: bool = False,
-              S3_ACCESS_KEY: str = os.getenv("S3_ACCESS_KEY"),
-              S3_SECRET_KEY: str = os.getenv("S3_SECRET_KEY"),
-              S3_ENDPOINT: str = os.getenv("S3_ENDPOINT"),
-              S3_REGION: str = os.getenv("S3_REGION", "eu-west-1")):
+def upload_s3(local_path: str,
+              S3_BUCKET: str,
+              s3_path: str = None,
+              S3_PREFIX: str = "",
+              S3_ACCESS_KEY: str = None,
+              S3_SECRET_KEY: str = None,
+              S3_ENDPOINT: str = None,
+              S3_REGION: str = None) -> bool:
+    """Fonction primitive : upload un fichier local vers un chemin S3 précis."""
 
-    tprint("upload", "small")
+    # Si pas de s3_path, on utilise local_path comme nom de fichier
+    s3_key = f"{S3_PREFIX}/{s3_path or local_path}".lstrip("/")
 
     s3 = boto3.client('s3',
                       aws_access_key_id=S3_ACCESS_KEY,
                       aws_secret_access_key=S3_SECRET_KEY,
                       endpoint_url=S3_ENDPOINT,
                       region_name=S3_REGION)
+    try:
+        file_size = os.path.getsize(local_path) / (1024**2)
+        start_time = time.time()
+        s3.upload_file(
+            local_path, S3_BUCKET, s3_key,
+            ExtraArgs={'ContentType': get_content_type(local_path)}
+        )
+        elapsed = time.time() - start_time
+        print(f"   ✅ {s3_key} — {round(file_size, 2)} MB @ {round(file_size/elapsed, 2)} MB/s")
+        return True
+    except Exception as e:
+        print(f"   ❌ {s3_key} — {str(e)}")
+        return False
+
+
+# def upload_s3(S3_BUCKET: str,
+#               S3_PREFIX: str,
+#               file_paths: list = None,
+#               overwrite: bool = False,
+#               organize_by_version: bool = False,
+#               relative_to: str = None,
+#               S3_ACCESS_KEY: str = os.getenv("S3_ACCESS_KEY"),
+#               S3_SECRET_KEY: str = os.getenv("S3_SECRET_KEY"),
+#               S3_ENDPOINT: str = os.getenv("S3_ENDPOINT"),
+#               S3_REGION: str = os.getenv("S3_REGION", "eu-west-1")):
+
+#     tprint("upload", "small")
+
+#     s3 = boto3.client('s3',
+#                       aws_access_key_id=S3_ACCESS_KEY,
+#                       aws_secret_access_key=S3_SECRET_KEY,
+#                       endpoint_url=S3_ENDPOINT,
+#                       region_name=S3_REGION)
     
+#     if not file_paths:
+#         print("\n⚠️  Aucun fichier de données à uploader")
+#         return []
 
-    if file_paths is None:
-        file_paths = list(Path(OUTPUT_DIR).glob("*.nc"))
-    if not file_paths:
-        print("\n⚠️  Aucun fichier de données à uploader")
-        return []
+#     print("\nUPLOAD S3")
+#     print(f"   Bucket: {S3_BUCKET}")
+#     print(f"   Préfixe: {S3_PREFIX or '(racine)'}")
+#     print(f"   Fichiers: {len(file_paths)}")
 
-    print("\nUPLOAD S3")
-    print(f"   Bucket: {S3_BUCKET}")
-    print(f"   Préfixe: {S3_PREFIX or '(racine)'}")
-    print(f"   Fichiers: {len(file_paths)}")
+#     # Fichiers déjà présents dans le bucket
+#     existing_keys = set()
+#     paginator = s3.get_paginator('list_objects_v2')
+#     for page in paginator.paginate(Bucket=S3_BUCKET, Prefix=S3_PREFIX):
+#         for obj in page.get('Contents', []):
+#             existing_keys.add(obj['Key'])
 
-    # Fichiers déjà présents dans le bucket
-    existing_keys = set()
-    paginator = s3.get_paginator('list_objects_v2')
-    for page in paginator.paginate(Bucket=S3_BUCKET, Prefix=S3_PREFIX):
-        for obj in page.get('Contents', []):
-            existing_keys.add(obj['Key'])
+#     not_uploaded = []
+#     skipped = []
 
-    not_uploaded = []
-    skipped = []
+#     for i, file_path in enumerate(file_paths):
+#         path_obj = Path(file_path)
 
-    for i, file_path in enumerate(file_paths):
-        path_obj = Path(file_path)
+#         if organize_by_version:
+#             parsed = parse_filename(path_obj.name)
+#             if parsed:
+#                 version = parsed['version']
+#                 prefix = f"{S3_PREFIX}/{version}".lstrip("/")
+#             else:
+#                 prefix = S3_PREFIX
+#             s3_key = f"{prefix}/{path_obj.name}".lstrip("/")
+#         elif relative_to:
+#             relative_path = Path(file_path).relative_to(relative_to)
+#             s3_key = f"{S3_PREFIX}/{relative_path}".lstrip("/")
+#         else:
+#             s3_key = f"{S3_PREFIX}/{path_obj.name}".lstrip("/")
 
-        if organize_by_version:
-            parsed = parse_filename(path_obj.name)
-            if parsed:
-                version = parsed['version']
-                prefix = f"{S3_PREFIX}/{version}".lstrip("/")
-            else:
-                prefix = S3_PREFIX
-        else:
-            prefix = S3_PREFIX
+#         print(f"\n📤 [{i+1}/{len(file_paths)}] {path_obj.name}")
+#         print(f"   → Clé S3: {s3_key}")
 
-        s3_key = f"{prefix}/{path_obj.name}".lstrip("/")
+#         if s3_key in existing_keys and not overwrite:
+#             print(f"   ⏭️  Fichier déjà présent, ignoré")
+#             skipped.append(file_path)
+#             continue
 
-        print(f"\n📤 [{i+1}/{len(file_paths)}] {path_obj.name}")
-        print(f"   → Clé S3: {s3_key}")
+#         try:
+#             start_time = time.time()
+#             file_size = os.path.getsize(file_path) / (1024**2)
 
-        if s3_key in existing_keys and not overwrite:
-            print(f"   ⏭️  Fichier déjà présent, ignoré")
-            skipped.append(file_path)
-            continue
+#             s3.upload_file(
+#                 str(file_path),
+#                 S3_BUCKET,
+#                 s3_key,
+#                 ExtraArgs={'ContentType': get_content_type(path_obj.name)}
+#             )
 
-        try:
-            start_time = time.time()
-            file_size = os.path.getsize(file_path) / (1024**2)
+#             elapsed = time.time() - start_time
+#             speed = file_size / elapsed
+#             print(f"   ✅ Upload: {round(file_size, 2)} MB en {round(elapsed, 2)}s @ {round(speed, 2)} MB/s")
 
-            s3.upload_file(
-                str(file_path),
-                S3_BUCKET,
-                s3_key,
-                ExtraArgs={'ContentType': get_content_type(path_obj.name)}
-            )
+#             # URL stable du fichier
+#             url = f"{S3_ENDPOINT.rstrip('/')}/{S3_BUCKET}/{s3_key}"
+#             print(f"   🔗 URL: {url}")
 
-            elapsed = time.time() - start_time
-            speed = file_size / elapsed
-            print(f"   ✅ Upload: {round(file_size, 2)} MB en {round(elapsed, 2)}s @ {round(speed, 2)} MB/s")
+#         except Exception as e:
+#             not_uploaded.append(file_path)
+#             print(f"   ❌ Erreur: {str(e)}")
 
-            # URL stable du fichier
-            url = f"{S3_ENDPOINT.rstrip('/')}/{S3_BUCKET}/{s3_key}"
-            print(f"   🔗 URL: {url}")
+#     print("\nRÉSUMÉ")
+#     uploaded_count = len(file_paths) - len(not_uploaded) - len(skipped)
+#     print(f"   - {uploaded_count}/{len(file_paths)} fichier(s) uploadés")
+#     if skipped:
+#         print(f"   - ⏭️  {len(skipped)} fichier(s) ignorés")
+#     if not_uploaded:
+#         print(f"   - ⚠️  {len(not_uploaded)} échec(s)")
 
-        except Exception as e:
-            not_uploaded.append(file_path)
-            print(f"   ❌ Erreur: {str(e)}")
+#     return not_uploaded
 
-    print("\nRÉSUMÉ")
-    uploaded_count = len(file_paths) - len(not_uploaded) - len(skipped)
-    print(f"   - {uploaded_count}/{len(file_paths)} fichier(s) uploadés")
-    if skipped:
-        print(f"   - ⏭️  {len(skipped)} fichier(s) ignorés")
-    if not_uploaded:
-        print(f"   - ⚠️  {len(not_uploaded)} échec(s)")
 
-    return not_uploaded
+def delete_s3_files(keys: list,
+                    S3_BUCKET: str,
+                    S3_ACCESS_KEY: str = os.getenv("S3_ACCESS_KEY"),
+                    S3_SECRET_KEY: str = os.getenv("S3_SECRET_KEY"),
+                    S3_ENDPOINT: str = os.getenv("S3_ENDPOINT"),
+                    S3_REGION: str = os.getenv("S3_REGION", "eu-west-1")):
+    s3 = boto3.client('s3',
+                      aws_access_key_id=S3_ACCESS_KEY,
+                      aws_secret_access_key=S3_SECRET_KEY,
+                      endpoint_url=S3_ENDPOINT,
+                      region_name=S3_REGION)
+    for key in keys:
+        s3.delete_object(Bucket=S3_BUCKET, Key=key)
+        print(f"🗑️  {key}")

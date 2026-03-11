@@ -1,4 +1,4 @@
-.PHONY: help install install-prod install-service uninstall-service update run-all run-as-service run-policy run-download run-decompress run-split run-convert run-merge run-upload run-ui run-clean service-stop service-restart service-status service-logs service-logs-last-run data-hard-clean data-hard-clean-all data-stats
+.PHONY: help install install-prod install-service uninstall-service update run-all run-as-service run-policy run-cors run-download run-decompress run-split run-convert run-merge run-upload run-ui run-clean service-stop service-restart service-status service-logs service-logs-last-run data-hard-clean data-hard-clean-all data-stats
 
 # Variables
 PYTHON := python3
@@ -65,6 +65,10 @@ run-all: ## Exécute le pipeline complet (dev, avec ton user)
 run-policy: ## Update la policy du bucket S3
 	@echo "$(GREEN)Changement de la policy du bucket S3...$(NC)"
 	sudo -u safran-fairy $(PYTHON_VENV) main.py --policy
+
+run-cors: ## Update les CORS du bucket S3
+	@echo "$(GREEN)Changement des CORS du bucket S3...$(NC)"
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --cors
 
 run-download: ## Télécharge les nouvelles données uniquement
 	@echo "$(GREEN)Téléchargement des données...$(NC)"
@@ -167,3 +171,21 @@ data-stats: ## Affiche des statistiques sur les données
 	@echo ""
 	@echo "Dernière mise à jour :"
 	@stat -c '%y %n' /var/lib/safran-fairy/04_data-output/*.nc 2>/dev/null | sort | tail -1 | awk '{print "  " $$1, $$2, $$4}' || echo "  Aucune donnée"
+
+
+
+docker_start:
+	docker compose up -d
+
+docker_status:
+	docker compose ps
+
+docker_log_app:
+	docker compose logs
+
+docker_stop:
+	docker compose stop
+
+docker_delete:
+	docker compose down -v
+
