@@ -66,8 +66,8 @@ def list_s3_files(S3_BUCKET: str,
                   extension: str = None,
                   S3_ACCESS_KEY: str = os.getenv("S3_ACCESS_KEY"),
                   S3_SECRET_KEY: str = os.getenv("S3_SECRET_KEY"),
-                  S3_ENDPOINT: str = config["S3_ENDPOINT"],
-                  S3_REGION: str = config["S3_REGION"]):
+                  S3_ENDPOINT: str = os.getenv("S3_ENDPOINT"),
+                  S3_REGION: str = os.getenv("S3_REGION")):
     """
     Liste les fichiers d'un bucket S3.
     """
