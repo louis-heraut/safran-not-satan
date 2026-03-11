@@ -180,18 +180,18 @@ def main():
 
         if merged_files is None:
             merged_files = list(Path(OUTPUT_DIR).glob("*.nc"))
-        s3_paths = merged_files.relative_to(OUTPUT_DIR)
+        s3_paths = [p.relative_to(OUTPUT_DIR) for p in merged_files]
         
         not_uploaded = upload_s3(file_paths=merged_files,
                                  S3_BUCKET=S3_BUCKET,
                                  s3_paths=s3_paths,
-                                 S3_PREFIX=S3_PREFIX,
+                                 S3_PREFIX="data",
                                  S3_ACCESS_KEY=S3_ACCESS_KEY,
                                  S3_SECRET_KEY=S3_SECRET_KEY,
                                  S3_ENDPOINT=S3_ENDPOINT,
                                  S3_REGION=S3_REGION)
         clean_s3(S3_BUCKET=S3_BUCKET,
-                 S3_PREFIX=S3_PREFIX,
+                 S3_PREFIX="data",
                  S3_ACCESS_KEY=S3_ACCESS_KEY,
                  S3_SECRET_KEY=S3_SECRET_KEY,
                  S3_ENDPOINT=S3_ENDPOINT,
@@ -226,14 +226,14 @@ def main():
 
 
         s3_paths = stac_files.relative_to(CATALOG_DIR)
-         upload_s3(file_paths=stac_files,
-                   S3_BUCKET=S3_BUCKET,
-                   s3_paths=s3_paths,
-                   S3_PREFIX=S3_PREFIX,
-                   S3_ACCESS_KEY=S3_ACCESS_KEY,
-                   S3_SECRET_KEY=S3_SECRET_KEY,
-                   S3_ENDPOINT=S3_ENDPOINT,
-                   S3_REGION=S3_REGION)
+        upload_s3(file_paths=stac_files,
+                  S3_BUCKET=S3_BUCKET,
+                  s3_paths=s3_paths,
+                  S3_PREFIX=S3_PREFIX,
+                  S3_ACCESS_KEY=S3_ACCESS_KEY,
+                  S3_SECRET_KEY=S3_SECRET_KEY,
+                  S3_ENDPOINT=S3_ENDPOINT,
+                  S3_REGION=S3_REGION)
 
          
 
