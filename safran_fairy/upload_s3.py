@@ -98,38 +98,45 @@ def get_content_type(filename: str) -> str:
     }.get(ext, 'application/octet-stream')
 
 
-def upload_s3(local_path: str,
+def upload_s3(local_paths: list,
               S3_BUCKET: str,
-              s3_path: str = None,
+              s3_paths: list = None,
               S3_PREFIX: str = "",
               S3_ACCESS_KEY: str = None,
               S3_SECRET_KEY: str = None,
               S3_ENDPOINT: str = None,
-              S3_REGION: str = None) -> bool:
-    """Fonction primitive : upload un fichier local vers un chemin S3 précis."""
-
-    # Si pas de s3_path, on utilise local_path comme nom de fichier
-    s3_key = f"{S3_PREFIX}/{s3_path or local_path}".lstrip("/")
+              S3_REGION: str = None) -> list:
+    """Upload une liste de fichiers sur S3."""
 
     s3 = boto3.client('s3',
                       aws_access_key_id=S3_ACCESS_KEY,
                       aws_secret_access_key=S3_SECRET_KEY,
                       endpoint_url=S3_ENDPOINT,
                       region_name=S3_REGION)
-    try:
-        file_size = os.path.getsize(local_path) / (1024**2)
-        start_time = time.time()
-        s3.upload_file(
-            local_path, S3_BUCKET, s3_key,
-            ExtraArgs={'ContentType': get_content_type(local_path)}
-        )
-        elapsed = time.time() - start_time
-        print(f"   ✅ {s3_key} — {round(file_size, 2)} MB @ {round(file_size/elapsed, 2)} MB/s")
-        return True
-    except Exception as e:
-        print(f"   ❌ {s3_key} — {str(e)}")
-        return False
 
+    # Si pas de s3_paths, on utilise les local_paths
+    if s3_paths is None:
+        s3_paths = local_paths
+
+    not_uploaded = []
+    for i, (local_path, s3_path) in enumerate(zip(local_paths, s3_paths)):
+        s3_key = f"{S3_PREFIX}/{s3_path}".lstrip("/")
+        print(f"\n📤 [{i+1}/{len(local_paths)}] {s3_key}")
+        try:
+            file_size = os.path.getsize(local_path) / (1024**2)
+            start_time = time.time()
+            s3.upload_file(
+                local_path, S3_BUCKET, s3_key,
+                ExtraArgs={'ContentType': get_content_type(local_path)}
+            )
+            elapsed = time.time() - start_time
+            print(f"   ✅ {round(file_size, 2)} MB @ {round(file_size/elapsed, 2)} MB/s")
+        except Exception as e:
+            print(f"   ❌ {str(e)}")
+            not_uploaded.append(local_path)
+
+    print(f"\nRÉSUMÉ — {len(local_paths)-len(not_uploaded)}/{len(local_paths)} uploadés")
+    return not_uploaded
 
 # def upload_s3(S3_BUCKET: str,
 #               S3_PREFIX: str,

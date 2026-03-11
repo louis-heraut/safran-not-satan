@@ -182,7 +182,7 @@ def main():
             merged_files = list(Path(OUTPUT_DIR).glob("*.nc"))
         s3_paths = [p.relative_to(OUTPUT_DIR) for p in merged_files]
         
-        not_uploaded = upload_s3(file_paths=merged_files,
+        not_uploaded = upload_s3(local_paths=merged_files,
                                  S3_BUCKET=S3_BUCKET,
                                  s3_paths=s3_paths,
                                  S3_PREFIX="data",
