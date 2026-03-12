@@ -49,7 +49,7 @@ RDG_DATASET_DOI = config['RDG_DATASET_DOI']
 RDG_API_TOKEN = os.getenv("RDG_API_TOKEN")
 S3_ENDPOINT = config['S3_ENDPOINT']
 S3_BUCKET = config['S3_BUCKET']
-S3_PREFIX = config['S3_PREFIX']
+S3_DATA_PREFIX = config['S3_DATA_PREFIX']
 S3_REGION = config['S3_REGION']
 S3_ACCESS_KEY = os.getenv('S3_ACCESS_KEY')
 S3_SECRET_KEY = os.getenv('S3_SECRET_KEY')
@@ -159,9 +159,9 @@ def main():
         not_uploaded = upload_s3(local_paths=merged_files,
                                  S3_BUCKET=S3_BUCKET,
                                  s3_paths=s3_paths,
-                                 S3_PREFIX="data",
+                                 S3_PREFIX=S3_DATA_PREFIX,
                                  **S3_CREDENTIALS)
-        clean_s3(S3_BUCKET=S3_BUCKET, S3_PREFIX="data", **S3_CREDENTIALS)
+        clean_s3(S3_BUCKET=S3_BUCKET, S3_PREFIX=S3_DATA_PREFIX, **S3_CREDENTIALS)
 
         if not_uploaded:
             sys.exit(1)
@@ -170,7 +170,7 @@ def main():
     if args.all or args.ui:
         stac_files = generate_stac_catalog(CATALOG_DIR=CATALOG_DIR,
                                            S3_BUCKET=S3_BUCKET,
-                                           S3_PREFIX=S3_PREFIX,
+                                           S3_PREFIX="",
                                            METADATA_VARIABLES_FILE=METADATA_VARIABLES_FILE,
                                            **S3_CREDENTIALS)
         s3_paths = [Path(p).relative_to(CATALOG_DIR) for p in stac_files]
@@ -256,15 +256,15 @@ if __name__ == "__main__":
 
 
 # stac_keys = list_s3_files(S3_BUCKET, S3_PREFIX="",
-#                           S3_ACCESS_KEY=S3_ACCESS_KEY,
-#                           S3_SECRET_KEY=S3_SECRET_KEY,
-#                           S3_ENDPOINT=S3_ENDPOINT,
-#                           S3_REGION=S3_REGION)
+                          # S3_ACCESS_KEY=S3_ACCESS_KEY,
+                          # S3_SECRET_KEY=S3_SECRET_KEY,
+                          # S3_ENDPOINT=S3_ENDPOINT,
+                          # S3_REGION=S3_REGION)
 # delete_s3_files(stac_keys, S3_BUCKET,
-#                 S3_ACCESS_KEY=S3_ACCESS_KEY,
-#                 S3_SECRET_KEY=S3_SECRET_KEY,
-#                 S3_ENDPOINT=S3_ENDPOINT,
-#                 S3_REGION=S3_REGION)
+                # S3_ACCESS_KEY=S3_ACCESS_KEY,
+                # S3_SECRET_KEY=S3_SECRET_KEY,
+                # S3_ENDPOINT=S3_ENDPOINT,
+                # S3_REGION=S3_REGION)
 
 
 # browser_keys = list_s3_files(S3_BUCKET, S3_PREFIX="assets/",
