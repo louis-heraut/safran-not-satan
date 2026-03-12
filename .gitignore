@@ -11,4 +11,6 @@ download_state.json
 02_data-split/
 03_data-convert/
 04_data-output/
+05_catalog/
 .python_env/
+*.gpkg

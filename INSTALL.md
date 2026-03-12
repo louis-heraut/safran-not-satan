@@ -1,3 +1,4 @@
+```markdown
 # Installation
 
 
@@ -36,8 +37,8 @@ Remplir avec vos paramètres pour la prod :
 MODE=prod
 CONFIG_FILE=config-prod.json
 RDG_API_TOKEN=token_dataverse
-S3_ACCESS_KEY=clé_accès_EC2
-S3_SECRET_KEY=clé_secrète_EC2
+S3_ACCESS_KEY=clé_accès_S3
+S3_SECRET_KEY=clé_secrète_S3
 ```
 
 #### 3.2. config.json
@@ -46,26 +47,27 @@ S3_SECRET_KEY=clé_secrète_EC2
 sudo cp config.json.dist config-prod.json
 sudo nano config-prod.json
 ```
-Remplir avec vos paramètres pour la prod :
-```bash
+Remplir avec vos paramètres pour la prod, en particulier :
+```json
 "STATE_FILE": "/var/lib/safran-fairy/download_state.json",
 "INDEX_PATH": "/var/lib/safran-fairy/data-access.html",
 "DOWNLOAD_DIR": "/var/lib/safran-fairy/00_data-download",
 "RAW_DIR": "/var/lib/safran-fairy/01_data-raw",
 "SPLIT_DIR": "/var/lib/safran-fairy/02_data-split",
 "CONVERT_DIR": "/var/lib/safran-fairy/03_data-convert",
-"OUTPUT_DIR": "/var/lib/safran-fairy/04_data-output"
+"OUTPUT_DIR": "/var/lib/safran-fairy/04_data-output",
+"CATALOG_DIR": "/var/lib/safran-fairy/05_catalog"
 ```
 
 ### 4. Installation prod et service systemd
-``` bash
+```bash
 # Crée l'user système, les dossiers /var/lib avec les bons droits,
 # installe et démarre le timer — tout en une commande
 sudo make install-service
 ```
 
 ### 5. Test manuel
-``` bash
+```bash
 # Tester le pipeline comme le ferait le service
 make run-as-service
 
@@ -74,17 +76,15 @@ ls -lh /var/lib/safran-fairy/04_data-output/
 ```
 
 ### 6. Vérification
-``` bash
+```bash
 # Voir les prochaines exécutions planifiées
-systemctl list-timers safran-sync.timer
+make service-status
 
 # Tester une exécution manuelle via systemd
 sudo systemctl start safran-sync.service
 
 # Suivre les logs en temps réel
-sudo journalctl -u safran-sync.service -f
-# ou via make :
-make logs
+make service-logs
 ```
 
 
@@ -130,7 +130,7 @@ Créer `/etc/logrotate.d/safran-fairy` :
     compress
     delaycompress
     notifempty
-    create 0644 safran-user safran-user
+    create 0644 safran-fairy safran-fairy
     sharedscripts
 }
 ```
@@ -140,11 +140,14 @@ Créer `/etc/logrotate.d/safran-fairy` :
 ### Vérifier la santé du service
 ```bash
 # Statut général
-make status
-# Dernière exécution
-make last-run
+make service-status
+
+# Logs de la dernière exécution
+make service-logs-last-run
+
 # Logs des 24 dernières heures
 sudo journalctl -u safran-sync.service --since "24 hours ago"
+
 # Erreurs uniquement
 sudo journalctl -u safran-sync.service -p err
 ```
@@ -152,6 +155,9 @@ sudo journalctl -u safran-sync.service -p err
 ### Métriques utiles
 ```bash
 # Taille des données
+make data-stats
+
+# Taille brute des dossiers
 du -sh /var/lib/safran-fairy/*/
 
 # Nombre de fichiers traités
@@ -168,11 +174,11 @@ stat -c '%y' /var/lib/safran-fairy/04_data-output/*.nc | sort | tail -1
 cd /opt/safran-fairy
 make update
 
-# Le service utilisera automatiquement le nouveau code 
-# à sa prochaine exécution (quotidienne à 02:00)
+# Le service utilisera automatiquement le nouveau code
+# à sa prochaine exécution planifiée
 # OU tester immédiatement :
 sudo systemctl start safran-sync.service
-sudo journalctl -u safran-sync.service -f
+make service-logs
 ```
 
 **Note :** La mise à jour ne modifie pas vos fichiers de configuration (`.env`, `config.json`) ni vos données.
@@ -181,13 +187,7 @@ sudo journalctl -u safran-sync.service -f
 ## Désinstallation
 ```bash
 # Arrêter et désactiver le service
-sudo systemctl stop safran-sync.timer
-sudo systemctl disable safran-sync.timer
-sudo systemctl stop safran-sync.service
-# Supprimer les fichiers systemd
-sudo rm /etc/systemd/system/safran-sync.service
-sudo rm /etc/systemd/system/safran-sync.timer
-sudo systemctl daemon-reload
+make uninstall-service
 # Supprimer le projet (attention : supprime toutes les données !)
 sudo rm -rf /opt/safran-fairy
 ```
@@ -199,4 +199,5 @@ sudo rm -rf /opt/safran-fairy
 tar czf safran-backup.tar.gz .env resources/download_state.json
 # Sur le nouveau serveur : suivre l'installation normale puis restaurer
 tar xzf safran-backup.tar.gz
+```
 ```

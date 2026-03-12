@@ -9,7 +9,6 @@ import json
 import argparse
 from pathlib import Path
 from dotenv import load_dotenv
-import pandas as pd
 
 
 def load_config(config_file):
@@ -36,30 +35,24 @@ RESOURCES_DIR = Path("resources")
 WELCOME_FILE = RESOURCES_DIR / config['WELCOME_FILE']
 METADATA_VARIABLES_FILE = RESOURCES_DIR / config['METADATA_VARIABLES_FILE']
 STATE_FILE = config['STATE_FILE']
-
 INDEX_PATH = config['INDEX_PATH']
-
 DOWNLOAD_DIR = config['DOWNLOAD_DIR']
 RAW_DIR = config['RAW_DIR']
 SPLIT_DIR = config['SPLIT_DIR']
 CONVERT_DIR = config['CONVERT_DIR']
 OUTPUT_DIR = config['OUTPUT_DIR']
 CATALOG_DIR = config['CATALOG_DIR']
-
 METEO_BASE_URL = config['METEO_BASE_URL']
 METEO_DATASET_ID = config['METEO_DATASET_ID']
-    
 RDG_BASE_URL = config['RDG_BASE_URL']
 RDG_DATASET_DOI = config['RDG_DATASET_DOI']
 RDG_API_TOKEN = os.getenv("RDG_API_TOKEN")
-
 S3_ENDPOINT = config['S3_ENDPOINT']
 S3_BUCKET = config['S3_BUCKET']
 S3_PREFIX = config['S3_PREFIX']
 S3_REGION = config['S3_REGION']
 S3_ACCESS_KEY = os.getenv('S3_ACCESS_KEY')
 S3_SECRET_KEY = os.getenv('S3_SECRET_KEY')
-
 
 # Setup dev mode
 if MODE == "dev":
@@ -70,98 +63,79 @@ if MODE == "dev":
     except:
         pass
 
+from safran_fairy import (apply_s3_bucket_policy, apply_s3_bucket_cors,
+                          list_s3_files, download, decompress, split, convert,
+                          merge, upload_s3, delete_s3_files,
+                          generate_stac_catalog, clean_local, clean_s3)
 
-from safran_fairy import apply_s3_bucket_policy, apply_s3_bucket_cors, list_s3_files, download, decompress, split, convert, merge, upload_s3, delete_s3_files, generate_stac_catalog, clean_local, clean_s3
+S3_CREDENTIALS = dict(S3_ACCESS_KEY=S3_ACCESS_KEY,
+                      S3_SECRET_KEY=S3_SECRET_KEY,
+                      S3_ENDPOINT=S3_ENDPOINT,
+                      S3_REGION=S3_REGION)
 
 
 def main():
-    # Arguments en ligne de commande
     parser = argparse.ArgumentParser(description='SAFRAN Fairy - Pipeline de traitement')
 
+    # Setup bucket (hors pipeline)
+    parser.add_argument('--setup',      action='store_true', help='Configure le bucket S3 (policy + CORS)')
+
     # Pipeline complet
-    parser.add_argument('--all', action='store_true',
-                        help='Exécute le pipeline complet')
+    parser.add_argument('--all',        action='store_true', help='Exécute le pipeline complet')
 
     # Étapes individuelles
-    parser.add_argument('--policy', action='store_true',
-                        help="Update le fichier policy de S3")
-    parser.add_argument('--cors', action='store_true',
-                        help="Update le fichier CORS de S3")
-    parser.add_argument('--browser', action='store_true',
-                    help='Déploie STAC Browser sur S3')
-    parser.add_argument('--download', action='store_true',
-                        help='Télécharge les fichiers')
-    parser.add_argument('--decompress', action='store_true',
-                        help='Décompresse les fichiers')
-    parser.add_argument('--split', action='store_true',
-                        help='Découpe les CSV par variable')
-    parser.add_argument('--convert', action='store_true',
-                        help='Convertit en NetCDF')
-    parser.add_argument('--merge', action='store_true',
-                        help='Fusionne temporellement')
-    parser.add_argument('--upload', action='store_true',
-                        help='Upload sur le S3')
-    parser.add_argument('--clean', action='store_true',
-                        help='Nettoie les anciennes versions')
-    parser.add_argument('--ui', action='store_true',
-                        help="Update le fichier index de Dataverse")
+    parser.add_argument('--download',   action='store_true', help='Télécharge les fichiers')
+    parser.add_argument('--decompress', action='store_true', help='Décompresse les fichiers')
+    parser.add_argument('--split',      action='store_true', help='Découpe les CSV par variable')
+    parser.add_argument('--convert',    action='store_true', help='Convertit en NetCDF')
+    parser.add_argument('--merge',      action='store_true', help='Fusionne temporellement')
+    parser.add_argument('--upload',     action='store_true', help='Upload sur le S3')
+    parser.add_argument('--ui',         action='store_true', help='Génère et uploade le catalogue STAC')
+    parser.add_argument('--clean',      action='store_true', help='Nettoie les anciennes versions')
 
     # Options
-    parser.add_argument('--overwrite',   action='store_true', help='Écrase les fichiers existants sur Dataverse')
-    parser.add_argument('--process',     action='store_true', help='Traite uniquement (decompress + split + convert + merge)')
+    parser.add_argument('--overwrite',  action='store_true', help='Écrase les fichiers existants')
+    parser.add_argument('--process',    action='store_true', help='Traite uniquement (decompress + split + convert + merge)')
 
     args = parser.parse_args()
-    
-    if not any([args.all, args.policy, args.cors, args.browser,
-                args.download, args.decompress, args.split,
+
+    if not any([args.all, args.setup, args.download, args.decompress, args.split,
                 args.convert, args.merge, args.upload, args.ui,
                 args.clean, args.overwrite]):
         args.all = True
         args.overwrite = True
-    
+
     print_welcome(WELCOME_FILE)
-    
-    # Variables pour tracking
-    downloaded_files = None
+
+    downloaded_files  = None
     decompressed_files = None
-    splited_files = None
-    converted_files = None
-    merged_files = None
+    splited_files     = None
+    converted_files   = None
+    merged_files      = None
 
-    # 0. BUCKET parameter
-    if args.policy:
-        apply_s3_bucket_policy(S3_BUCKET=S3_BUCKET,
-                               S3_ACCESS_KEY=S3_ACCESS_KEY,
-                               S3_SECRET_KEY=S3_SECRET_KEY,
-                               S3_ENDPOINT=S3_ENDPOINT,
-                               S3_REGION=S3_REGION)
+    # 0. SETUP BUCKET (une seule fois)
+    if args.setup:
+        apply_s3_bucket_policy(S3_BUCKET=S3_BUCKET, **S3_CREDENTIALS)
+        apply_s3_bucket_cors(S3_BUCKET=S3_BUCKET, **S3_CREDENTIALS)
 
-    if args.cors:
-        apply_s3_bucket_cors(S3_BUCKET=S3_BUCKET,
-                             S3_ACCESS_KEY=S3_ACCESS_KEY,
-                             S3_SECRET_KEY=S3_SECRET_KEY,
-                             S3_ENDPOINT=S3_ENDPOINT,
-                             S3_REGION=S3_REGION)
-    
     # 1. TÉLÉCHARGEMENT
     if args.all or args.download:
-        downloaded_files =  download(STATE_FILE, DOWNLOAD_DIR,
-                                     METEO_BASE_URL, METEO_DATASET_ID)
+        downloaded_files = download(STATE_FILE, DOWNLOAD_DIR,
+                                    METEO_BASE_URL, METEO_DATASET_ID)
         clean_local(DOWNLOAD_DIR)
         if not downloaded_files:
             return
 
     # 2. DÉCOMPRESSION
     if args.all or args.process or args.decompress:
-        decompressed_files = decompress(DOWNLOAD_DIR, RAW_DIR,
-                                        downloaded_files)
+        decompressed_files = decompress(DOWNLOAD_DIR, RAW_DIR, downloaded_files)
         clean_local(RAW_DIR)
 
     # 3. SPLIT
     if args.all or args.process or args.split:
         splited_files = split(RAW_DIR, SPLIT_DIR, decompressed_files)
         clean_local(SPLIT_DIR)
-            
+
     # 4. CONVERSION
     if args.all or args.process or args.convert:
         converted_files = convert(SPLIT_DIR, CONVERT_DIR,
@@ -173,103 +147,52 @@ def main():
         merged_files = merge(CONVERT_DIR, OUTPUT_DIR, converted_files)
         clean_local(OUTPUT_DIR,
                     patterns={'historical': r'historical-(\d{8})-(\d{8})',
-                              'latest': r'latest-(\d{8})-(\d{8})',
-                              'previous': r'previous-(\d{8})-(\d{8})'})
-    
+                              'latest':     r'latest-(\d{8})-(\d{8})',
+                              'previous':   r'previous-(\d{8})-(\d{8})'})
+
     # 6. UPLOAD
     if args.all or args.upload:
-        overwrite = args.overwrite
-
         if merged_files is None:
             merged_files = list(Path(OUTPUT_DIR).glob("*.nc"))
-        s3_paths = [p.relative_to(OUTPUT_DIR) for p in merged_files]
-        
+        s3_paths = [Path(p).relative_to(OUTPUT_DIR) for p in merged_files]
+
         not_uploaded = upload_s3(local_paths=merged_files,
                                  S3_BUCKET=S3_BUCKET,
                                  s3_paths=s3_paths,
                                  S3_PREFIX="data",
-                                 S3_ACCESS_KEY=S3_ACCESS_KEY,
-                                 S3_SECRET_KEY=S3_SECRET_KEY,
-                                 S3_ENDPOINT=S3_ENDPOINT,
-                                 S3_REGION=S3_REGION)
-        clean_s3(S3_BUCKET=S3_BUCKET,
-                 S3_PREFIX="data",
-                 S3_ACCESS_KEY=S3_ACCESS_KEY,
-                 S3_SECRET_KEY=S3_SECRET_KEY,
-                 S3_ENDPOINT=S3_ENDPOINT,
-                 S3_REGION=S3_REGION)
+                                 **S3_CREDENTIALS)
+        clean_s3(S3_BUCKET=S3_BUCKET, S3_PREFIX="data", **S3_CREDENTIALS)
+
         if not_uploaded:
             sys.exit(1)
 
-    # 7. UPDATE UI
+    # 7. CATALOGUE STAC
     if args.all or args.ui:
-        # generate_index(OUTPUT_DIR=OUTPUT_DIR,
-        #                S3_BUCKET=S3_BUCKET,
-        #                S3_PREFIX=S3_PREFIX,
-        #                METADATA_VARIABLES_FILE=METADATA_VARIABLES_FILE,
-        #                INDEX_PATH=INDEX_PATH,
-        #                S3_ENDPOINT=S3_ENDPOINT,
-        #                S3_REGION=S3_REGION)
-        # upload_dataverse_index(INDEX_PATH=INDEX_PATH,
-        #                        RDG_DATASET_DOI=RDG_DATASET_DOI,
-        #                        RDG_BASE_URL=RDG_BASE_URL,
-        #                        RDG_API_TOKEN=RDG_API_TOKEN)
+        stac_files = generate_stac_catalog(CATALOG_DIR=CATALOG_DIR,
+                                           S3_BUCKET=S3_BUCKET,
+                                           S3_PREFIX=S3_PREFIX,
+                                           METADATA_VARIABLES_FILE=METADATA_VARIABLES_FILE,
+                                           **S3_CREDENTIALS)
+        s3_paths = [Path(p).relative_to(CATALOG_DIR) for p in stac_files]
 
-        stac_files = generate_stac_catalog(
-            CATALOG_DIR=CATALOG_DIR, 
-            S3_BUCKET=S3_BUCKET,
-            S3_PREFIX=S3_PREFIX,
-            METADATA_VARIABLES_FILE=METADATA_VARIABLES_FILE,
-            S3_ACCESS_KEY=S3_ACCESS_KEY,
-            S3_SECRET_KEY=S3_SECRET_KEY,
-            S3_ENDPOINT=S3_ENDPOINT,
-            S3_REGION=S3_REGION)
-
-        s3_paths = [p.relative_to(CATALOG_DIR) for p in stac_files]
-        
         upload_s3(local_paths=stac_files,
                   S3_BUCKET=S3_BUCKET,
                   s3_paths=s3_paths,
                   S3_PREFIX="",
-                  S3_ACCESS_KEY=S3_ACCESS_KEY,
-                  S3_SECRET_KEY=S3_SECRET_KEY,
-                  S3_ENDPOINT=S3_ENDPOINT,
-                  S3_REGION=S3_REGION)
+                  **S3_CREDENTIALS)
 
-    if args.browser:
-        dist_path = Path(CATALOG_DIR) / "stac-browser" / "dist"
-        local_paths = [str(f) for f in dist_path.rglob("*") if f.is_file()]
-        s3_paths = [str(Path(f).relative_to(dist_path)) for f in local_paths]
-
-        print(f"🚀 Deploy STAC Browser — {len(local_paths)} fichiers")
-        upload_s3(local_paths=local_paths,
-                  S3_BUCKET=S3_BUCKET,
-                  s3_paths=s3_paths,
-                  S3_PREFIX="",
-                  S3_ACCESS_KEY=S3_ACCESS_KEY,
-                  S3_SECRET_KEY=S3_SECRET_KEY,
-                  S3_ENDPOINT=S3_ENDPOINT,
-                  S3_REGION=S3_REGION)
-    
     # 8. NETTOYAGE
     if args.clean:
-        # Nettoyage local
         clean_local(directory=DOWNLOAD_DIR)
         clean_local(directory=RAW_DIR)
         clean_local(directory=SPLIT_DIR)
         clean_local(directory=CONVERT_DIR)
         clean_local(directory=OUTPUT_DIR,
                     patterns={'historical': r'historical-(\d{8})-(\d{8})',
-                              'latest': r'latest-(\d{8})-(\d{8})',
-                              'previous': r'previous-(\d{8})-(\d{8})'})
-        # Nettoyage S3
-        clean_s3(S3_BUCKET=S3_BUCKET,
-                 S3_PREFIX=S3_PREFIX, 
-                 S3_ACCESS_KEY=S3_ACCESS_KEY,
-                 S3_SECRET_KEY=S3_SECRET_KEY,
-                 S3_ENDPOINT=S3_ENDPOINT,
-                 S3_REGION=S3_REGION)
-        
+                              'latest':     r'latest-(\d{8})-(\d{8})',
+                              'previous':   r'previous-(\d{8})-(\d{8})'})
+        clean_s3(S3_BUCKET=S3_BUCKET, S3_PREFIX=S3_PREFIX, **S3_CREDENTIALS)
+
     print("\n✨ Pipeline terminé avec succès!")
 
 
@@ -288,6 +211,35 @@ if __name__ == "__main__":
 
 
 
+
+                # generate_index(OUTPUT_DIR=OUTPUT_DIR,
+        #                S3_BUCKET=S3_BUCKET,
+        #                S3_PREFIX=S3_PREFIX,
+        #                METADATA_VARIABLES_FILE=METADATA_VARIABLES_FILE,
+        #                INDEX_PATH=INDEX_PATH,
+        #                S3_ENDPOINT=S3_ENDPOINT,
+        #                S3_REGION=S3_REGION)
+        # upload_dataverse_index(INDEX_PATH=INDEX_PATH,
+        #                        RDG_DATASET_DOI=RDG_DATASET_DOI,
+        #                        RDG_BASE_URL=RDG_BASE_URL,
+        #                        RDG_API_TOKEN=RDG_API_TOKEN)
+
+    # if args.browser:
+    #     dist_path = Path(CATALOG_DIR) / "stac-browser" / "dist"
+    #     local_paths = [str(f) for f in dist_path.rglob("*") if f.is_file()]
+    #     s3_paths = [str(Path(f).relative_to(dist_path)) for f in local_paths]
+
+    #     print(f"🚀 Deploy STAC Browser — {len(local_paths)} fichiers")
+    #     upload_s3(local_paths=local_paths,
+    #               S3_BUCKET=S3_BUCKET,
+    #               s3_paths=s3_paths,
+    #               S3_PREFIX="",
+    #               S3_ACCESS_KEY=S3_ACCESS_KEY,
+    #               S3_SECRET_KEY=S3_SECRET_KEY,
+    #               S3_ENDPOINT=S3_ENDPOINT,
+    #               S3_REGION=S3_REGION)
+    
+        
 # keys = ["catalog.json", "collection.json"]
 # delete_s3_files(keys,
 #                 S3_BUCKET=S3_BUCKET,
@@ -308,8 +260,24 @@ if __name__ == "__main__":
 #                           S3_SECRET_KEY=S3_SECRET_KEY,
 #                           S3_ENDPOINT=S3_ENDPOINT,
 #                           S3_REGION=S3_REGION)
-# stac_keys = ["index.html", "mitm.html", "runtime-config.js"]
 # delete_s3_files(stac_keys, S3_BUCKET,
+#                 S3_ACCESS_KEY=S3_ACCESS_KEY,
+#                 S3_SECRET_KEY=S3_SECRET_KEY,
+#                 S3_ENDPOINT=S3_ENDPOINT,
+#                 S3_REGION=S3_REGION)
+
+
+# browser_keys = list_s3_files(S3_BUCKET, S3_PREFIX="assets/",
+#                              S3_ACCESS_KEY=S3_ACCESS_KEY,
+#                              S3_SECRET_KEY=S3_SECRET_KEY,
+#                              S3_ENDPOINT=S3_ENDPOINT,
+#                              S3_REGION=S3_REGION)
+# browser_keys += list_s3_files(S3_BUCKET, S3_PREFIX="", extension=".html",
+#                               S3_ACCESS_KEY=S3_ACCESS_KEY,
+#                               S3_SECRET_KEY=S3_SECRET_KEY,
+#                               S3_ENDPOINT=S3_ENDPOINT,
+#                               S3_REGION=S3_REGION)
+# delete_s3_files(browser_keys, S3_BUCKET,
 #                 S3_ACCESS_KEY=S3_ACCESS_KEY,
 #                 S3_SECRET_KEY=S3_SECRET_KEY,
 #                 S3_ENDPOINT=S3_ENDPOINT,

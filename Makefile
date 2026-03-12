@@ -1,8 +1,8 @@
-.PHONY: help install install-prod install-service uninstall-service update run-all run-as-service run-policy run-cors run-download run-decompress run-split run-convert run-merge run-upload run-ui run-clean service-stop service-restart service-status service-logs service-logs-last-run data-hard-clean data-hard-clean-all data-stats
-
-# Variables projet
-STAC_BROWSER_DIR = 05_catalog/stac-browser
-STAC_CATALOG_URL = https://s3-data.meso.umontpellier.fr/safran-fairy-data/stac-data/catalog.json
+.PHONY: help install install-prod install-service uninstall-service update \
+        run-all run-as-service run-setup \
+        run-download run-decompress run-split run-convert run-merge run-upload run-ui run-clean \
+        service-stop service-restart service-restart-timer service-status service-logs service-logs-last-run \
+        data-hard-clean data-hard-clean-all data-stats
 
 # Variables
 PYTHON := python3
@@ -11,19 +11,21 @@ BIN := $(VENV)/bin
 PIP := $(BIN)/pip
 PYTHON_VENV := $(BIN)/python
 
-# Couleurs pour les messages
-GREEN := \033[0;32m
+# Couleurs
+GREEN  := \033[0;32m
 YELLOW := \033[0;33m
-RED := \033[0;31m
-NC := \033[0m # No Color
+RED    := \033[0;31m
+NC     := \033[0m
 
 help: ## Affiche cette aide
 	@echo "$(GREEN)SAFRAN Fairy - Commandes disponibles$(NC)"
 	@echo ""
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-20s$(NC) %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-25s$(NC) %s\n", $$1, $$2}'
 
 
-install: ## Installe le projet (virtualenv + dépendances) - pour le dev
+# ─── INSTALLATION ────────────────────────────────────────────────────────────
+
+install: ## Installe le projet (virtualenv + dépendances) - dev
 	@echo "$(GREEN)Installation de SAFRAN Fairy...$(NC)"
 	$(PYTHON) -m venv $(VENV)
 	$(PIP) install --upgrade pip
@@ -31,13 +33,13 @@ install: ## Installe le projet (virtualenv + dépendances) - pour le dev
 	@echo "$(GREEN)✓ Installation terminée$(NC)"
 	@echo "Pour activer l'environnement : source $(VENV)/bin/activate"
 
-install-prod:
+install-prod: ## Configure l'environnement de production
 	@echo "$(GREEN)Configuration de SAFRAN Fairy pour la prod...$(NC)"
 	sudo useradd --system --no-create-home --shell /usr/sbin/nologin safran-fairy 2>/dev/null || true
-	sudo mkdir -p /var/lib/safran-fairy/{00_data-download,01_data-raw,02_data-split,03_data-convert,04_data-output}
+	sudo mkdir -p /var/lib/safran-fairy/{00_data-download,01_data-raw,02_data-split,03_data-convert,04_data-output,05_catalog}
 	sudo chown -R safran-fairy:safran-fairy /var/lib/safran-fairy
 
-install-service: install-prod
+install-service: install-prod ## Installe et active le service systemd
 	@echo "$(GREEN)Installation du service systemd...$(NC)"
 	sudo cp safran-sync.service /etc/systemd/system/
 	sudo cp safran-sync.timer /etc/systemd/system/
@@ -46,7 +48,7 @@ install-service: install-prod
 	sudo systemctl start safran-sync.timer
 	@echo "$(GREEN)✓ Service installé et activé$(NC)"
 
-uninstall-service: ## Désinstalle le service systemd (nécessite sudo)
+uninstall-service: ## Désinstalle le service systemd
 	@echo "$(YELLOW)Désinstallation du service systemd...$(NC)"
 	sudo systemctl stop safran-sync.timer || true
 	sudo systemctl disable safran-sync.timer || true
@@ -62,19 +64,22 @@ update: ## Met à jour le projet depuis git
 	sudo $(PIP) install --upgrade -r requirements.txt
 	@echo "$(GREEN)✓ Mise à jour terminée$(NC)"
 
-run-all: ## Exécute le pipeline complet (dev, avec ton user)
+
+# ─── PIPELINE ────────────────────────────────────────────────────────────────
+
+run-all: ## Exécute le pipeline complet (dev)
 	@echo "$(GREEN)Exécution du pipeline complet...$(NC)"
 	$(PYTHON_VENV) main.py --all --overwrite
 
-run-policy: ## Update la policy du bucket S3
-	@echo "$(GREEN)Changement de la policy du bucket S3...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --policy
+run-as-service: ## Exécute comme le ferait le service systemd
+	@echo "$(GREEN)Exécution du pipeline complet par le service...$(NC)"
+	sudo -u safran-fairy /opt/safran-fairy/.python_env/bin/python /opt/safran-fairy/main.py --all
 
-run-cors: ## Update les CORS du bucket S3
-	@echo "$(GREEN)Changement des CORS du bucket S3...$(NC)"
-	sudo -u safran-fairy $(PYTHON_VENV) main.py --cors
+run-setup: ## Configure le bucket S3 (policy + CORS) - une seule fois
+	@echo "$(GREEN)Configuration du bucket S3...$(NC)"
+	sudo -u safran-fairy $(PYTHON_VENV) main.py --setup
 
-run-download: ## Télécharge les nouvelles données uniquement
+run-download: ## Télécharge les nouvelles données
 	@echo "$(GREEN)Téléchargement des données...$(NC)"
 	sudo -u safran-fairy $(PYTHON_VENV) main.py --download
 
@@ -94,21 +99,20 @@ run-merge: ## Fusionne temporellement
 	@echo "$(GREEN)Fusion temporelle...$(NC)"
 	sudo -u safran-fairy $(PYTHON_VENV) main.py --merge
 
-run-upload: ## Upload sur S3
+run-upload: ## Upload les données sur S3
 	@echo "$(GREEN)Upload sur S3...$(NC)"
 	sudo -u safran-fairy $(PYTHON_VENV) main.py --upload --overwrite
 
-run-ui: ## Génère et upload l'index HTML sur Dataverse
-	@echo "$(GREEN)Mise à jour de l'interface...$(NC)"
+run-ui: ## Génère et uploade le catalogue STAC
+	@echo "$(GREEN)Mise à jour du catalogue STAC...$(NC)"
 	sudo -u safran-fairy $(PYTHON_VENV) main.py --ui
 
 run-clean: ## Nettoie les anciennes versions (local + S3)
 	@echo "$(GREEN)Nettoyage des anciennes versions...$(NC)"
 	sudo -u safran-fairy $(PYTHON_VENV) main.py --clean
 
-run-as-service: ## Exécute comme le ferait le service systemd (nécessite sudo)
-	@echo "$(GREEN)Exécution du pipeline complet par le service...$(NC)"
-	sudo -u safran-fairy /opt/safran-fairy/.python_env/bin/python /opt/safran-fairy/main.py --all
+
+# ─── SERVICE ─────────────────────────────────────────────────────────────────
 
 service-stop: ## Stoppe le run en cours (le timer reste actif)
 	@echo "$(YELLOW)Arrêt du service...$(NC)"
@@ -121,7 +125,7 @@ service-restart: ## Relance immédiatement le service sans attendre le timer
 	@echo "$(GREEN)✓ Service relancé$(NC)"
 
 service-restart-timer: ## Relance le timer
-	@echo "$(GREEN)Relance du timer du service...$(NC)"
+	@echo "$(GREEN)Relance du timer...$(NC)"
 	sudo systemctl start safran-sync.timer
 	@echo "$(GREEN)✓ Timer relancé$(NC)"
 
@@ -132,7 +136,7 @@ service-status: ## Affiche le statut du service systemd
 	@echo "$(GREEN)Prochaines exécutions :$(NC)"
 	@systemctl list-timers safran-sync.timer --no-pager || true
 
-service-logs: ## Affiche les logs du service en temps réel
+service-logs: ## Affiche les logs en temps réel
 	@echo "$(GREEN)Logs en temps réel (Ctrl+C pour quitter) :$(NC)"
 	sudo journalctl -u safran-sync.service -f
 
@@ -140,7 +144,10 @@ service-logs-last-run: ## Affiche les logs de la dernière exécution
 	@echo "$(GREEN)Logs de la dernière exécution :$(NC)"
 	@sudo journalctl -u safran-sync.service --since "24 hours ago" --no-pager | tail -50
 
-data-hard-clean: ## Nettoie les fichiers temporaires (⚠️ destructif mais garde les outputs)
+
+# ─── DONNÉES ─────────────────────────────────────────────────────────────────
+
+data-hard-clean: ## Nettoie les fichiers temporaires (garde les outputs)
 	@echo "$(YELLOW)Nettoyage des fichiers temporaires...$(NC)"
 	rm -rf /var/lib/safran-fairy/01_data-raw/*
 	rm -rf /var/lib/safran-fairy/02_data-split/*
@@ -167,11 +174,11 @@ data-stats: ## Affiche des statistiques sur les données
 	@du -sh /var/lib/safran-fairy/0*_data-*/ 2>/dev/null || echo "  Aucune donnée"
 	@echo ""
 	@echo "Nombre de fichiers :"
-	@echo "  Downloads    : $$(ls -1 /var/lib/safran-fairy/00_data-download/*.csv.gz 2>/dev/null | wc -l)"
-	@echo "  Raw          : $$(ls -1 /var/lib/safran-fairy/01_data-raw/*.csv 2>/dev/null | wc -l)"
-	@echo "  Split        : $$(ls -1 /var/lib/safran-fairy/02_data-split/*.parquet 2>/dev/null | wc -l)"
-	@echo "  Converted    : $$(ls -1 /var/lib/safran-fairy/03_data-convert/*.nc 2>/dev/null | wc -l)"
-	@echo "  Outputs      : $$(ls -1 /var/lib/safran-fairy/04_data-output/*.nc 2>/dev/null | wc -l)"
+	@echo "  Downloads  : $$(ls -1 /var/lib/safran-fairy/00_data-download/*.csv.gz 2>/dev/null | wc -l)"
+	@echo "  Raw        : $$(ls -1 /var/lib/safran-fairy/01_data-raw/*.csv 2>/dev/null | wc -l)"
+	@echo "  Split      : $$(ls -1 /var/lib/safran-fairy/02_data-split/*.parquet 2>/dev/null | wc -l)"
+	@echo "  Converted  : $$(ls -1 /var/lib/safran-fairy/03_data-convert/*.nc 2>/dev/null | wc -l)"
+	@echo "  Outputs    : $$(ls -1 /var/lib/safran-fairy/04_data-output/*.nc 2>/dev/null | wc -l)"
 	@echo ""
 	@echo "Dernière mise à jour :"
 	@stat -c '%y %n' /var/lib/safran-fairy/04_data-output/*.nc 2>/dev/null | sort | tail -1 | awk '{print "  " $$1, $$2, $$4}' || echo "  Aucune donnée"
@@ -179,32 +186,17 @@ data-stats: ## Affiche des statistiques sur les données
 
 
 
-browser-install:
-	git clone https://github.com/radiantearth/stac-browser $(STAC_BROWSER_DIR) || true
-	cd $(STAC_BROWSER_DIR) && npm install
 
-browser-build:
-	cd $(STAC_BROWSER_DIR) && \
-	STAC_APP_NAME="SAFRAN-Fairy" \
-	STAC_CATALOG_URL=$(STAC_CATALOG_URL) \
-	npm run build --base=/safran-fairy-data/
+# ─── STAC BROWSER ────────────────────────────────────────────────────────────
+# STAC_BROWSER_DIR = 05_catalog/stac-browser
+# STAC_CATALOG_URL = https://s3-data.meso.umontpellier.fr/safran-fairy-data/stac-data/catalog.json
 
-browser-deploy:
-	python main.py --browser
+# browser-install: ## Clone et installe STAC Browser (une seule fois)
+# 	git clone https://github.com/radiantearth/stac-browser $(STAC_BROWSER_DIR) || true
+# 	cd $(STAC_BROWSER_DIR) && npm install
 
-
-# docker_start:
-# 	docker compose up -d
-
-# docker_status:
-# 	docker compose ps
-
-# docker_log_app:
-# 	docker compose logs
-
-# docker_stop:
-# 	docker compose stop
-
-# docker_delete:
-# 	docker compose down -v
-
+# browser-build: ## Build STAC Browser
+# 	cd $(STAC_BROWSER_DIR) && \
+# 	STAC_APP_NAME="SAFRAN-Fairy" \
+# 	STAC_CATALOG_URL=$(STAC_CATALOG_URL) \
+# 	npm run build

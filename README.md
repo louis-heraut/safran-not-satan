@@ -15,10 +15,10 @@ SAFRAN Fairy                                     . ݁. ݁       ⊹ ₊.      (
 <!-- badges: start -->
 [![Lifecycle: stable](https://img.shields.io/badge/lifecycle-stable-green)](https://lifecycle.r-lib.org/articles/stages.html)
 ![](https://img.shields.io/github/last-commit/louis-heraut/safran-fairy)
-[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](code_of_conduct.md) 
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](code_of_conduct.md)
 <!-- badges: end -->
 
-Pipeline automatisé de téléchargement, traitement et publication des données SAFRAN-ISBA-MODCOU (SIM2) au format NetCDF pour chaque variable disponible pour l'ensemble de la période de réanalyse depuis [meteo.data.gouv.fr](https://www.data.gouv.fr/datasets/donnees-changement-climatique-sim-quotidienne) vers [Recherche Data Gouv](https://doi.org/10.57745/BAZ12C).
+Pipeline automatisé de téléchargement, traitement et publication des données SAFRAN-ISBA-MODCOU (SIM2) au format NetCDF pour chaque variable disponible pour l'ensemble de la période de réanalyse depuis [meteo.data.gouv.fr](https://www.data.gouv.fr/datasets/donnees-changement-climatique-sim-quotidienne) vers un bucket S3 public avec catalogue STAC et vers [Recherche Data Gouv](https://doi.org/10.57745/BAZ12C).
 
 
 ## Raison d'être
@@ -29,7 +29,8 @@ Afin d'améliorer la réutilisabilité et en raison d'une accessibilité et d'un
 3. **Découpage** par variable climatique
 4. **Conversion** en NetCDF avec métadonnées
 5. **Reconstruction** des séries temporelles (historical/previous/latest)
-6. **Publication** sur un [dépôt de données](https://doi.org/10.57745/BAZ12C) de l'entrepôt Recherche Data Gouv.
+6. **Publication** sur un bucket S3 public avec génération d'un catalogue [STAC](https://stacspec.org/) pour la découvrabilité et l'interopérabilité des données
+7. **Publication** sur un [dépôt de données](https://doi.org/10.57745/BAZ12C) de l'entrepôt Recherche Data Gouv
 
 *in dev* – Ce projet ajoute aux données d'origine l'évapotranspiration calculée selon la [méthode de Hargreaves](https://doi.org/10.13031/2013.26773) à partir des températures minimales et maximales de la réanalyse SAFRAN afin de continuer de répondre au besoin exprimé dans le cadre du projet [Explore2](https://entrepot.recherche.data.gouv.fr/dataverse/explore2).
 
@@ -85,13 +86,20 @@ Voir [INSTALL.md](INSTALL.md) pour l'installation détaillée sur serveur Linux.
 ### Exécution manuelle
 ```bash
 # Pipeline complet
-make run
+make run-all
 
 # Étapes individuelles
-make download    # Télécharger les nouvelles données
-make process     # Traiter (décompresser, découper, convertir, fusionner)
-make upload      # Publier sur Dataverse
-make clean-old   # Nettoyer les anciennes versions
+make run-download    # Télécharger les nouvelles données
+make run-decompress  # Décompresser
+make run-split       # Découper par variable
+make run-convert     # Convertir en NetCDF
+make run-merge       # Fusionner temporellement
+make run-upload      # Publier sur S3
+make run-ui          # Générer et uploader le catalogue STAC
+make run-clean       # Nettoyer les anciennes versions
+
+# Configuration du bucket S3 (une seule fois)
+make run-setup
 ```
 
 ### Service systemd (production)
@@ -100,8 +108,10 @@ make clean-old   # Nettoyer les anciennes versions
 sudo make install-service
 
 # Vérifier le statut
-sudo systemctl status safran-sync.timer
-sudo journalctl -u safran-sync.service -f
+make service-status
+
+# Suivre les logs en temps réel
+make service-logs
 ```
 
 Le service s'exécute quotidiennement à 02:00 UTC.
@@ -109,13 +119,16 @@ Le service s'exécute quotidiennement à 02:00 UTC.
 ### Monitoring
 ```bash
 # Logs en temps réel
-make logs
+make service-logs
 
 # Statut du service
-make status
+make service-status
 
-# Dernière exécution
-make last-run
+# Logs de la dernière exécution
+make service-logs-last-run
+
+# Statistiques sur les données
+make data-stats
 ```
 
 ### Architecture
@@ -126,7 +139,8 @@ safran_fairy/
 ├── split.py         # Découpage par variable
 ├── convert.py       # Conversion CSV → NetCDF
 ├── merge.py         # Fusion temporelle
-├── upload.py        # Publication Dataverse
+├── upload.py        # Publication S3
+├── catalog.py       # Génération catalogue STAC
 └── clean.py         # Nettoyage des anciennes versions
 ```
 
@@ -137,6 +151,13 @@ safran_fairy/
 02_data-split/        # Fichiers .parquet par variable
 03_data-convert/      # Fichiers .nc individuels
 04_data-output/       # Fichiers .nc fusionnés (historical/previous/latest)
+05_catalog/           # Fichiers JSON du catalogue STAC
+```
+
+### Accès aux données
+Les données sont accessibles via le catalogue STAC :
+```
+https://radiantearth.github.io/stac-browser/#/external/https://s3-data.meso.umontpellier.fr/safran-fairy-data/stac-data/catalog.json
 ```
 
 
