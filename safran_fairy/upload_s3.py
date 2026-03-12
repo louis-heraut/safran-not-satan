@@ -117,7 +117,8 @@ def upload_s3(local_paths: list,
 
     not_uploaded = []
     for i, (local_path, s3_path) in enumerate(zip(local_paths, s3_paths)):
-        s3_key = f"{S3_PREFIX.rstrip('/')}/{s3_path.lstrip('/')}"
+        # s3_key = f"{S3_PREFIX}/{s3_path}".lstrip("/")
+        s3_key = "/".join([S3_PREFIX.strip("/"), str(s3_path).strip("/")])
         print(f"\n📤 [{i+1}/{len(local_paths)}] {s3_key}")
         try:
             file_size = os.path.getsize(local_path) / (1024**2)
