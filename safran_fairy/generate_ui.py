@@ -18,23 +18,38 @@ def safe_str(val):
     return str(val)
 
 
-def generate_index(OUTPUT_DIR: str,
-                   S3_BUCKET: str,
+def generate_index(S3_BUCKET: str,
                    S3_PREFIX: str = "",
                    METADATA_VARIABLES_FILE: str = None,
-                   INDEX_PATH: str = "index.html",
-                   S3_ENDPOINT: str = os.getenv("S3_ENDPOINT"),
-                   S3_REGION: str = os.getenv("S3_REGION", "eu-west-1")):
+                   INDEX_PATH: str = "data-access.html",
+                   S3_ACCESS_KEY: str = None,
+                   S3_SECRET_KEY: str = None,
+                   S3_ENDPOINT: str = None,
+                   S3_REGION: str = None):
     """
     Génère un fichier HTML listant les liens S3 groupés par variable et type.
-    Les URLs sont construites depuis les noms de fichiers locaux.
+    Les fichiers NC sont listés directement depuis le bucket S3.
     """
 
-    file_paths = list(Path(OUTPUT_DIR).glob("*.nc"))
-    if not file_paths:
-        print("\n⚠️  Aucun fichier à uploader")
-        return []
-    
+    # Lister les fichiers NC depuis S3
+    s3 = boto3.client('s3',
+                      aws_access_key_id=S3_ACCESS_KEY,
+                      aws_secret_access_key=S3_SECRET_KEY,
+                      endpoint_url=S3_ENDPOINT,
+                      region_name=S3_REGION)
+
+    paginator = s3.get_paginator('list_objects_v2')
+    file_names = []
+    for page in paginator.paginate(Bucket=S3_BUCKET, Prefix=S3_PREFIX):
+        for obj in page.get('Contents', []):
+            key = obj['Key']
+            if key.endswith('.nc'):
+                file_names.append(Path(key).name)
+
+    if not file_names:
+        print("\n⚠️  Aucun fichier NC trouvé sur S3")
+        return None
+
     # Base URL S3
     if S3_ENDPOINT:
         base_url = f"{S3_ENDPOINT.rstrip('/')}/{S3_BUCKET}"
@@ -42,28 +57,24 @@ def generate_index(OUTPUT_DIR: str,
         base_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com"
     if S3_PREFIX:
         base_url += f"/{S3_PREFIX.strip('/')}"
-    
-    # Charger les descriptions depuis le CSV
+
+    # Charger les métadonnées
     var_meta = {}
     if METADATA_VARIABLES_FILE and Path(METADATA_VARIABLES_FILE).exists():
         df = pd.read_csv(METADATA_VARIABLES_FILE, index_col='variable')
         var_meta = df.to_dict(orient='index')
-        
+
+    # Grouper par variable et type
     from collections import defaultdict
     grouped = defaultdict(lambda: defaultdict(list))
-
     type_order = ['latest', 'previous', 'historical']
 
-    for file_path in file_paths:
-        name = Path(file_path).name
-        # Extraire variable et type depuis le nom
+    for name in file_names:
         parts = name.split('_QUOT_SIM2_')
         if len(parts) != 2:
             continue
         variable = parts[0]
-        type_and_dates = parts[1]
-
-        file_type = type_and_dates.split('-')[0]  # latest / previous / historical
+        file_type = parts[1].split('-')[0]
         url = f"{base_url}/{name}"
         grouped[variable][file_type].append((name, url))
 
@@ -81,41 +92,32 @@ def generate_index(OUTPUT_DIR: str,
         periode = meta.get('periode_agregation', '')
 
         lines.append(f'<h3>{variable}</h3>')
-
-        # Infos métadonnées si disponibles
         if description:
             lines.append(f'<p><strong>{description}</strong>')
             details = []
             if unite:
                 details.append(f'Unité : {unite}')
             if periode:
-                details.append(f'Période d\'agrégation : {periode}')
+                details.append(f"Période d'agrégation : {periode}")
             if details:
                 lines.append(f'<br>{"  —  ".join(details)}')
             lines.append('</p>')
 
-        # Liens par type
-        types = grouped[variable]
         for file_type in type_order:
-            if file_type not in types:
+            if file_type not in grouped[variable]:
                 continue
-            files = types[file_type]
-
             label = {
-                'latest': 'Latest — update journalière',
-                'previous': 'Previous — update mensuelle',
-                'historical': 'Historical — update décénale'
+                'latest':     '<i>Latest</i> — update journalière',
+                'previous':   '<i>Previous</i> — update mensuelle',
+                'historical': '<i>Historical</i> — update décénale'
             }.get(file_type, file_type)
-
-            lines.append(f'<p><strong>{label}</strong><br>')
-            for name, url in sorted(files):
+            lines.append(f'<p>{label}<br>')
+            for name, url in sorted(grouped[variable][file_type]):
                 lines.append(f'<a href="{url}">{name}</a><br>')
             lines.append('</p>')
-
         lines.append('<hr>')
 
     html = '\n'.join(lines)
-
     with open(INDEX_PATH, 'w', encoding='utf-8') as f:
         f.write(html)
 
@@ -194,10 +196,8 @@ def generate_stac_catalog(CATALOG_DIR,
 
     # Créer l'arborescence locale
     catalog_dir = Path(CATALOG_DIR)
-    stac_dir = catalog_dir / "stac-data"
-    items_dir = stac_dir / "items"
+    items_dir = catalog_dir / "items"
     catalog_dir.mkdir(exist_ok=True)
-    stac_dir.mkdir(exist_ok=True)
     items_dir.mkdir(exist_ok=True)
 
     # ── 1. Générer les items STAC ──────────────────────────────────────
@@ -280,32 +280,32 @@ def generate_stac_catalog(CATALOG_DIR,
         ]
     }
 
-    collection_path = stac_dir / "collection.json"
+    collection_path = catalog_dir / "collection.json"
     with open(collection_path, 'w', encoding='utf-8') as fp:
         json.dump(collection, fp, ensure_ascii=False, indent=2)
     output_files.append(collection_path)
 
-    # ── 3. Catalog racine ──────────────────────────────────────────────
-    catalog = {
-        "type":         "Catalog",
-        "id":           "safran-fairy",
-        "stac_version": "1.0.0",
-        "title":        "Catalogue SAFRAN-Fairy",
-        "description":  "Catalogue des données SIM2 distribuées par SAFRAN-Fairy.",
-        "links": [
-            {"rel": "self",  "href": f"{base_url}/stac-data/catalog.json",    "type": "application/json"},
-            {"rel": "child", "href": f"{base_url}/stac-data/collection.json", "type": "application/json",
-             "title": "SIM2 SAFRAN-ISBA-MODCOU"}
-        ]
-    }
+    # # ── 3. Catalog racine ──────────────────────────────────────────────
+    # catalog = {
+    #     "type":         "Catalog",
+    #     "id":           "safran-fairy",
+    #     "stac_version": "1.0.0",
+    #     "title":        "Catalogue SAFRAN-Fairy",
+    #     "description":  "Catalogue des données SIM2 distribuées par SAFRAN-Fairy.",
+    #     "links": [
+    #         {"rel": "self",  "href": f"{base_url}/stac-data/catalog.json",    "type": "application/json"},
+    #         {"rel": "child", "href": f"{base_url}/stac-data/collection.json", "type": "application/json",
+    #          "title": "SIM2 SAFRAN-ISBA-MODCOU"}
+    #     ]
+    # }
 
-    catalog_path = stac_dir / "catalog.json"
-    with open(catalog_path, 'w', encoding='utf-8') as fp:
-        json.dump(catalog, fp, ensure_ascii=False, indent=2)
-    output_files.append(catalog_path)
+    # catalog_path = catalog_dir / "catalog.json"
+    # with open(catalog_path, 'w', encoding='utf-8') as fp:
+    #     json.dump(catalog, fp, ensure_ascii=False, indent=2)
+    # output_files.append(catalog_path)
 
     print(f"✅ STAC généré : {len(output_files) - 2} items, {len(grouped)} variables")
-    print(f"   → {stac_dir}/catalog.json")
-    print(f"   → {stac_dir}/collection.json")
-    print(f"   → {stac_dir}/items/ ({len(output_files) - 2} fichiers)")
+    # print(f"   → {catalog_dir}/catalog.json")
+    print(f"   → {catalog_dir}/collection.json")
+    print(f"   → {catalog_dir}/items/ ({len(output_files) - 2} fichiers)")
     return output_files

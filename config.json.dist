@@ -15,6 +15,6 @@
     "RDG_DATASET_DOI": "doi:10.57745/BAZ12C",
     "S3_ENDPOINT": "https://s3-data.meso.umontpellier.fr",
     "S3_BUCKET": "riverly-data-lake",
-    "S3_DATA_PREFIX": "data/safran-fairy/",
+    "S3_DATA_PREFIX": "safran-fairy",
     "S3_REGION": "us-east-1"
 } 
