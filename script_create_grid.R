@@ -30,3 +30,10 @@ sf::st_write(points, file.path(output_dir, output_file),
              layer="points", delete_layer=TRUE)
 sf::st_write(grid, file.path(output_dir, output_file),
              layer="grid-cells", delete_layer=TRUE)
+
+
+## GET BBOX __________________________________________________________
+grid = sf::st_read(file.path(output_dir, output_file))
+grid_wgs84 = sf::st_transform(grid, 4326)
+bbox = sf::st_bbox(grid_wgs84)
+print(bbox)

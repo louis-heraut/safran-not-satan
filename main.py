@@ -162,7 +162,9 @@ def main():
                                  s3_paths=s3_paths,
                                  S3_PREFIX="data/"+S3_DATA_PREFIX,
                                  **S3_CREDENTIALS)
-        clean_s3(S3_BUCKET=S3_BUCKET, S3_PREFIX=S3_DATA_PREFIX, **S3_CREDENTIALS)
+        clean_s3(S3_BUCKET=S3_BUCKET,
+                 S3_PREFIX="data/"+S3_DATA_PREFIX,
+                 **S3_CREDENTIALS)
 
         if not_uploaded:
             sys.exit(1)
@@ -192,7 +194,9 @@ def main():
                     patterns={'historical': r'historical-(\d{8})-(\d{8})',
                               'latest':     r'latest-(\d{8})-(\d{8})',
                               'previous':   r'previous-(\d{8})-(\d{8})'})
-        clean_s3(S3_BUCKET=S3_BUCKET, S3_PREFIX=S3_PREFIX, **S3_CREDENTIALS)
+        clean_s3(S3_BUCKET=S3_BUCKET,
+                 S3_PREFIX="data/"+S3_DATA_PREFIX,
+                 **S3_CREDENTIALS)
 
     print("\n✨ Pipeline terminé avec succès!")
 
@@ -211,39 +215,23 @@ if __name__ == "__main__":
         sys.exit(1)
 
 
+## HTML INDEX ________________________________________________________
+# generate_index(S3_BUCKET=S3_BUCKET,
+#                S3_PREFIX="data/"+S3_DATA_PREFIX,
+#                METADATA_VARIABLES_FILE=METADATA_VARIABLES_FILE,
+#                INDEX_PATH=INDEX_PATH,
+#                S3_ACCESS_KEY=S3_ACCESS_KEY,
+#                S3_SECRET_KEY=S3_SECRET_KEY,
+#                S3_ENDPOINT=S3_ENDPOINT,
+#                S3_REGION=S3_REGION)
+
+# upload_dataverse_index(INDEX_PATH=INDEX_PATH,
+#                        RDG_DATASET_DOI=RDG_DATASET_DOI,
+#                        RDG_BASE_URL=RDG_BASE_URL,
+#                        RDG_API_TOKEN=RDG_API_TOKEN)
 
 
-        generate_index(S3_BUCKET=S3_BUCKET,
-                       S3_PREFIX="data/"+S3_DATA_PREFIX,
-                       METADATA_VARIABLES_FILE=METADATA_VARIABLES_FILE,
-                       INDEX_PATH=INDEX_PATH,
-                       S3_ACCESS_KEY=S3_ACCESS_KEY,
-                       S3_SECRET_KEY=S3_SECRET_KEY,
-                       S3_ENDPOINT=S3_ENDPOINT,
-                       S3_REGION=S3_REGION)
-
-        
-        # upload_dataverse_index(INDEX_PATH=INDEX_PATH,
-        #                        RDG_DATASET_DOI=RDG_DATASET_DOI,
-        #                        RDG_BASE_URL=RDG_BASE_URL,
-        #                        RDG_API_TOKEN=RDG_API_TOKEN)
-
-    # if args.browser:
-    #     dist_path = Path(CATALOG_DIR) / "stac-browser" / "dist"
-    #     local_paths = [str(f) for f in dist_path.rglob("*") if f.is_file()]
-    #     s3_paths = [str(Path(f).relative_to(dist_path)) for f in local_paths]
-
-    #     print(f"🚀 Deploy STAC Browser — {len(local_paths)} fichiers")
-    #     upload_s3(local_paths=local_paths,
-    #               S3_BUCKET=S3_BUCKET,
-    #               s3_paths=s3_paths,
-    #               S3_PREFIX="",
-    #               S3_ACCESS_KEY=S3_ACCESS_KEY,
-    #               S3_SECRET_KEY=S3_SECRET_KEY,
-    #               S3_ENDPOINT=S3_ENDPOINT,
-    #               S3_REGION=S3_REGION)
-    
-        
+## DRAFT _____________________________________________________________        
 # keys = ["catalog.json", "collection.json"]
 # delete_s3_files(keys,
 #                 S3_BUCKET=S3_BUCKET,
@@ -252,23 +240,21 @@ if __name__ == "__main__":
 #                 S3_ENDPOINT=S3_ENDPOINT,
 #                 S3_REGION=S3_REGION)
 
-# list_s3_files(S3_BUCKET, S3_PREFIX="stac/",
-#               S3_ACCESS_KEY=S3_ACCESS_KEY,
-#               S3_SECRET_KEY=S3_SECRET_KEY,
-#               S3_ENDPOINT=S3_ENDPOINT,
-#               S3_REGION=S3_REGION)
-
-
 # stac_keys = list_s3_files(S3_BUCKET, S3_PREFIX="",
                           # S3_ACCESS_KEY=S3_ACCESS_KEY,
                           # S3_SECRET_KEY=S3_SECRET_KEY,
                           # S3_ENDPOINT=S3_ENDPOINT,
                           # S3_REGION=S3_REGION)
+# stac_keys = list_s3_files(S3_BUCKET, S3_PREFIX="stac-data/safran-fairy/",
+#                           S3_ACCESS_KEY=S3_ACCESS_KEY,
+#                           S3_SECRET_KEY=S3_SECRET_KEY,
+#                           S3_ENDPOINT=S3_ENDPOINT,
+#                           S3_REGION=S3_REGION)
 # delete_s3_files(stac_keys, S3_BUCKET,
-                # S3_ACCESS_KEY=S3_ACCESS_KEY,
-                # S3_SECRET_KEY=S3_SECRET_KEY,
-                # S3_ENDPOINT=S3_ENDPOINT,
-                # S3_REGION=S3_REGION)
+#                 S3_ACCESS_KEY=S3_ACCESS_KEY,
+#                 S3_SECRET_KEY=S3_SECRET_KEY,
+#                 S3_ENDPOINT=S3_ENDPOINT,
+#                 S3_REGION=S3_REGION)
 
 
 # browser_keys = list_s3_files(S3_BUCKET, S3_PREFIX="assets/",
