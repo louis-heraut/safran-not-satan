@@ -417,9 +417,9 @@ def generate_stac_catalog(CATALOG_DIR,
         return f"{d[:4]}-{d[4:6]}-{d[6:8]}T00:00:00Z"
 
     version_descriptions = {
-        'historical': "Chronique historique excluant la dernière décennie (stable).",
-        'previous':   "Chronique historique comprenant la décennie en cours jusqu'au dernier mois écoulé (mise à jour mensuelle).",
-        'latest':     "Chronique historique comprenant la décennie en cours jusqu'au dernier jour écoulé (mise à jour quotidienne).",
+        'historical': "Mise à jour décennale",
+        'previous':   "Mise à jour mensuelle",
+        'latest':     "Mise à jour quotidienne",
     }
 
     BBOX = [-4.962155, 42.348763, 8.183832, 51.049739]
@@ -442,6 +442,10 @@ def generate_stac_catalog(CATALOG_DIR,
 
         for version, f in sorted(grouped[variable].items()):
             item_id = f"{variable}_SIM2_{version}"
+            version_description = version_descriptions.get(version, "")
+            item_description = (
+                f"[{version_description}] {safe_str(meta.get('description'))}"
+            )
             item = {
                 "type":         "Feature",
                 "stac_version": "1.0.0",
@@ -464,7 +468,7 @@ def generate_stac_catalog(CATALOG_DIR,
                     "end_datetime":       fmt_date(f['date_fin']),
                     "variable":           variable,
                     "version_type":       version,
-                    "description":        safe_str(meta.get('description')) or version_descriptions.get(version, ""),
+                    "description":        item_description,
                     "unite":              safe_str(meta.get('unite')),
                     "periode_agregation": safe_str(meta.get('periode_agregation')),
                     "license":            "etalab-2.0",

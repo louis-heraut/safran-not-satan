@@ -240,11 +240,11 @@ if __name__ == "__main__":
 #                 S3_ENDPOINT=S3_ENDPOINT,
 #                 S3_REGION=S3_REGION)
 
-# stac_keys = list_s3_files(S3_BUCKET, S3_PREFIX="",
-                          # S3_ACCESS_KEY=S3_ACCESS_KEY,
-                          # S3_SECRET_KEY=S3_SECRET_KEY,
-                          # S3_ENDPOINT=S3_ENDPOINT,
-                          # S3_REGION=S3_REGION)
+# stac_keys = list_s3_files(S3_BUCKET, S3_PREFIX="stac-data/data/",
+#                           S3_ACCESS_KEY=S3_ACCESS_KEY,
+#                           S3_SECRET_KEY=S3_SECRET_KEY,
+#                           S3_ENDPOINT=S3_ENDPOINT,
+#                           S3_REGION=S3_REGION)
 # stac_keys = list_s3_files(S3_BUCKET, S3_PREFIX="stac-data/safran-fairy/",
 #                           S3_ACCESS_KEY=S3_ACCESS_KEY,
 #                           S3_SECRET_KEY=S3_SECRET_KEY,
