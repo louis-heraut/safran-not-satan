@@ -13,7 +13,7 @@ SAFRAN Fairy                                     . ݁. ݁       ⊹ ₊.      (
 # SAFRAN Fairy
 
 <!-- badges: start -->
-[![ASSISTED BY AI](https://ai-label.org/image-pack/ai-label_banner-assisted-by-ai.svg)](https://ai-label.org/)
+[![MADE WITH AI](https://raw.githubusercontent.com/louis-heraut/louis-heraut/main/ai-label/ai-label_badge-made-with-ai.svg)](https://ai-label.org/)
 [![Lifecycle: stable](https://img.shields.io/badge/lifecycle-stable-green)](https://lifecycle.r-lib.org/articles/stages.html)
 ![](https://img.shields.io/github/last-commit/louis-heraut/safran-fairy)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](code_of_conduct.md)
